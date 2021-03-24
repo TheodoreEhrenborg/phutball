@@ -19,6 +19,11 @@ DIRECTIONS = {
     "SE": np.array((1, 1)),
     "NE": np.array((-1, 1)),
 }
+# I have had lots of fun dealing with formatting problems caused by circle sizes
+SMALL_WHITE_CIRCLE = "⚬"  # Looks good on WordPress
+SMALL_BLACK_CIRCLE = "•"
+WHITE_CIRCLE = "○"  # Looks good on GitHub
+BLACK_CIRCLE = "●"
 
 
 class HumanPlayer:
@@ -66,7 +71,13 @@ class Board:
             ball_at=self.ball_at,
         )
 
-    def pretty_string_details(self):
+    def pretty_string_details(self, small=False):
+        if small:
+            white_circle = SMALL_WHITE_CIRCLE
+            black_circle = SMALL_BLACK_CIRCLE
+        else:
+            white_circle = WHITE_CIRCLE
+            black_circle = BLACK_CIRCLE
         output = ""
         output += "          1111111111\n"
         output += " 1234567890123456789\n"
@@ -75,9 +86,9 @@ class Board:
             for j in range(LENGTH):
                 element = self.array[i][j]
                 if element == MAN:
-                    output += "⚬"
+                    output += white_circle
                 elif element == BALL:
-                    output += "•"
+                    output += black_circle
                 elif element == EMPTY:
                     output += "+"
                 else:
@@ -95,21 +106,27 @@ class Board:
         output += "Ball at: " + str(self.ball_at) + "\n"
         return output
 
-    def pretty_print(self):
-        print(self.pretty_string())
+    def pretty_print(self, small=False):
+        print(self.pretty_string(small))
 
-    def pretty_print_details(self):
-        print(self.pretty_string_details())
+    def pretty_print_details(self, small=False):
+        print(self.pretty_string_details(small))
 
-    def pretty_string(self):
+    def pretty_string(self, small=False):
+        if small:
+            white_circle = SMALL_WHITE_CIRCLE
+            black_circle = SMALL_BLACK_CIRCLE
+        else:
+            white_circle = WHITE_CIRCLE
+            black_circle = BLACK_CIRCLE
         output = ""
         for i in range(WIDTH):
             for j in range(LENGTH):
                 element = self.array[i][j]
                 if element == MAN:
-                    output += "⚬"
+                    output += white_circle
                 elif element == BALL:
-                    output += "•"
+                    output += black_circle
                 elif element == EMPTY:
                     output += "+"
                 else:
@@ -241,15 +258,18 @@ class Board:
 class ListPlayer:
     """Rehashes a game"""
 
-    def __init__(self, old_game, quieter=False):
+    def __init__(
+        self, old_game, quieter=False, small=False
+    ):
         self.old_game = old_game
         self.quieter = quieter
+        self.small = small
 
     def make_move(self, board):
         if self.quieter:
-            board.pretty_print()
+            board.pretty_print(self.small)
         else:
-            board.pretty_print_details()
+            board.pretty_print_details(self.small)
         return self.old_game[board.moves_made]
 
 
