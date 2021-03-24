@@ -1,0 +1,6 @@
+*.html
+*html~
+*.org~
+*.py~
+__pycache__/
+.gitignore~
