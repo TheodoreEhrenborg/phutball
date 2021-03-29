@@ -1,5 +1,6 @@
 # Try profiling the code at some point
-import copy
+# Is it worth it to make the array into a numpy array
+# and use numbers instead of strings?
 import string
 import numpy as np
 import time
@@ -56,7 +57,7 @@ class Board:
         self.side_to_move = side_to_move
         self.moves_made = moves_made
         if array is not None:
-            self.array = copy.deepcopy(array)
+            self.array = [element[:] for element in array]
         else:
             self.array = [
                 [EMPTY for i in range(LENGTH)]
@@ -166,27 +167,32 @@ class Board:
         """Like get_man_moves(), except we'd only place a man within 1
         or 2 squares (in a 5x5 box) of an existing piece"""
         moves = {}
+        used = set()
         for i in range(WIDTH):
             for j in range(LENGTH):
-                if self.array[i][j] == EMPTY:
-                    isolated = True
+                if self.array[i][j] != EMPTY:
                     for ii in range(i - 2, i + 3):
                         if ii in range(WIDTH):
                             for jj in range(j - 2, j + 3):
                                 if jj in range(LENGTH):
                                     if (
                                         self.array[ii][jj]
-                                        != EMPTY
+                                        == EMPTY
+                                        and (ii, jj)
+                                        not in used
                                     ):
-                                        isolated = False
-                    if not isolated:
-                        new = self.copy()
-                        new.increment()
-                        new.array[i][j] = MAN
-                        name = string.ascii_uppercase[
-                            i
-                        ] + str(j + 1)
-                        moves[name] = new
+                                        new = self.copy()
+                                        new.increment()
+                                        new.array[ii][
+                                            jj
+                                        ] = MAN
+                                        name = string.ascii_uppercase[
+                                            ii
+                                        ] + str(
+                                            jj + 1
+                                        )
+                                        moves[name] = new
+                                        used.add((ii, jj))
         return moves
 
     def get_ball_moves(self, moves=None, current_name=""):
@@ -407,13 +413,15 @@ class NegamaxPlayer:
                     "which has score of",
                     max_score,
                 )
-        print(self.calls)
+        print(self.calls, "calls")
         return max_move
 
 
 class NegamaxABPlayer:
     def __init__(
-        self, depth=1, static_evaluator=LocationEvaluator()
+        self,
+        depth=1,
+        static_evaluator=LocationEvaluator(),
     ):
         self.depth = depth
         self.static_evaluator = static_evaluator
@@ -448,15 +456,15 @@ class NegamaxABPlayer:
                 # We can guarantee a score better than beta,
                 # which is the score our opponent can guarantee
                 # by not choosing this node. So they won't choose this node.
-                if depth > 1:
-                    print(
-                        "Pruned, depth = ",
-                        depth,
-                        "alpha = ",
-                        alpha,
-                        "beta =",
-                        beta,
-                    )
+                # if depth > 1:
+                #    print(
+                #        "Pruned, depth = ",
+                #        depth,
+                #        "alpha = ",
+                #        alpha,
+                #        "beta =",
+                #        beta,
+                #    )
                 break
         return value
 
@@ -507,5 +515,5 @@ class NegamaxABPlayer:
                 # This is the alpha-beta break, except at the
                 # top level it just means we've won
                 break
-        print(self.calls)
+        print(self.calls, "calls")
         return max_move

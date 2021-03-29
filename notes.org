@@ -395,9 +395,9 @@ Ordered by: standard name
         8    0.000    0.000    1.055    0.132 main.py:254(get_all_moves)
     20011    0.060    0.000  850.614    0.043 main.py:259(get_all_nearby_moves)
         1    0.003    0.003  855.241  855.241 main.py:300(run_game)
-   562834    0.529    0.000    0.529    0.000 main.py:336(score)
+   562834    0.529    0.000    0.529    0.000 main.py:336(score) i.e. LocationEvaluator's score
         2    0.000    0.000    0.000    0.000 main.py:415(__init__)
-582827/360    2.734    0.000  *853.844*    2.372 main.py:421(score)
+582827/360    2.734    0.000  *853.844*    2.372 main.py:421(score) i.e. NegamaxABPlayer's score
         9    0.030    0.003  854.176   94.908 main.py:463(make_move)
   1884178    2.217    0.000  793.450    0.000 main.py:48(__init__)
         1    0.000    0.000    0.000    0.000 main.py:61(<listcomp>)
@@ -434,3 +434,418 @@ not counting whatever they called.
 That's why we spend 795 secs (cumulative) inside Board's copy method.
 
 Let's fix that.
+
+Also, we spent literally half a second in the static eval, despite calling
+it half a million times.
+Even multiplying that by 10 (i.e. no alpha-beta), that's
+still 5 seconds out of 855.
+
+So calling it a million times takes a second.
+
+
+* Adjusting the copy() method
+Which had a big effect---an order of magnitude as fast
+
+main.run_game( (main.NegamaxABPlayer(depth = 3), main.NegamaxABPlayer(depth =3) ) )
+
+After 22 moves, it had taken 405 seconds, not 2502 seconds
+
+End of game:
+
+217602 calls
+['I11', 'K11', 'J12', 'K12', 'K13', 'L13', 'L14', 'M14', 'M15', 'N15', 'N14', 'K14', 'L15', 'N13', 'M11', 'L10', 'K10', 'K9', 'J9', 'J8', 'I8', 'I9', 'SE W NW E SW ', 'L7', 'N7', 'M6', 'N6', 'M7', 'N8', 'M8', 'N9', 'M9', 'N10', 'N5', 'O4', 'J7', 'I7', 'I6', 'H6', 'H5', 'G5', 'G4', 'F4', 'F3', 'E3', 'E2']
+Duration of game so far is 1134.6323010921478 seconds
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+○○++++++++++++++++
+F++○○+++++++++++++++
+G+++○○++++++++++++++
+H++++○○+++++++++++++
+I+++++○○++++++++++++
+J++++++○++++++++++++
+K+++++++●+○○○+○+++++
+L++++++○+++++○+○++++
+M+++++○○○○++++○+++++
+N++++○○○○○○+++++++++
+O+++○+++++++++++++++
+Side to move: Left
+Moves made: 46
+Ball at: [10  7]
+
+And then Left committed suicide!?
+
+['I11', 'K11', 'J12', 'K12', 'K13', 'L13', 'L14', 'M14', 'M15', 'N15', 'N14', 'K14', 'L15', 'N13', 'M11', 'L10', 'K10', 'K9', 'J9', 'J8', 'I8', 'I9', 'SE W NW E SW ', 'L7', 'N7', 'M6', 'N6', 'M7', 'N8', 'M8', 'N9', 'M9', 'N10', 'N5', 'O4', 'J7', 'I7', 'I6', 'H6', 'H5', 'G5', 'G4', 'F4', 'F3', 'E3', 'E2', 'NW ']
+
+Total: 1186 seconds
+
+
+* More profiling
+
+numpy does not speed it up
+That is, it takes 51.5 ns to access a number in a 2d list,
+and 49.4 ns to access a string, but it takes 244 ns to access
+a number in a 2d numpy array
+
+Let's profile and stop it after 8 moves
+
+cProfile.run("main.run_game( (main.NegamaxABPlayer(depth = 3), main.NegamaxABPlayer(depth =3) ) )")
+
+^C         11101517 function calls (10385145 primitive calls) in 74.622 seconds
+
+   Ordered by: standard name
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        9    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(amax)
+        9    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(amin)
+        1    0.000    0.000   74.622   74.622 <string>:1(<module>)
+        9    0.000    0.000    0.000    0.000 _asarray.py:14(asarray)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:1124(__init__)
+       18    0.000    0.000    0.000    0.000 arrayprint.py:1132(__call__)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:1473(_array_str_implementation)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:358(_get_formatdict)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:365(<lambda>)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:409(_get_format_function)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:461(wrapper)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:478(_array2string)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:516(array2string)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:60(_make_options_dict)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:65(<dictcomp>)
+       18    0.000    0.000    0.000    0.000 arrayprint.py:695(_extendLine)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:709(_formatArray)
+     27/9    0.000    0.000    0.000    0.000 arrayprint.py:718(recurser)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2584(_amax_dispatcher)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2589(amax)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2709(_amin_dispatcher)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2714(amin)
+       18    0.000    0.000    0.000    0.000 fromnumeric.py:70(_wrapreduction)
+       18    0.000    0.000    0.000    0.000 fromnumeric.py:71(<dictcomp>)
+        9    0.000    0.000    0.002    0.000 main.py:114(pretty_print_details)
+  1336613    0.364    0.000    0.364    0.000 main.py:142(increment)
+        8    0.003    0.000    0.028    0.004 main.py:150(get_man_moves)
+    20981   *54.685*    0.003   61.681    0.003 main.py:166(get_nearby_man_moves)
+83823/20988    2.902    0.000    9.047    0.000 main.py:225(get_ball_moves)
+   896828    3.652    0.000    3.652    0.000 main.py:282(is_on_board)
+        8    0.000    0.000    0.032    0.004 main.py:287(get_all_moves)
+    20981    0.050    0.000   70.787    0.003 main.py:292(get_all_nearby_moves)
+        1    0.002    0.002   74.622   74.622 main.py:338(run_game)
+   632929    0.639    0.000    0.639    0.000 main.py:374(score)
+        2    0.000    0.000    0.000    0.000 main.py:453(__init__)
+653892/373    2.831    0.000   74.524    0.200 main.py:463(score)
+  2007207    1.178    0.000    7.888    0.000 main.py:49(__init__)
+        9    0.025    0.003   74.585    8.287 main.py:510(make_move)
+  2007206    6.710    0.000    6.710    0.000 main.py:60(<listcomp>)
+        1    0.000    0.000    0.000    0.000 main.py:62(<listcomp>)
+       15    0.000    0.000    0.000    0.000 main.py:63(<listcomp>)
+  2007206    1.251    0.000    9.139    0.000 main.py:68(copy)
+        9    0.001    0.000    0.002    0.000 main.py:76(pretty_string_details)
+        9    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+        1    0.000    0.000   74.622   74.622 {built-in method builtins.exec}
+        9    0.000    0.000    0.000    0.000 {built-in method builtins.id}
+       27    0.000    0.000    0.000    0.000 {built-in method builtins.issubclass}
+      171    0.000    0.000    0.000    0.000 {built-in method builtins.len}
+        9    0.000    0.000    0.000    0.000 {built-in method builtins.locals}
+  1307054    0.295    0.000    0.295    0.000 {built-in method builtins.max}
+      312    0.006    0.000    0.006    0.000 {built-in method builtins.print}
+        9    0.000    0.000    0.000    0.000 {built-in method numpy.array}
+       18    0.000    0.000    0.000    0.000 {built-in method numpy.core._multiarray_umath.implement_array_function}
+        9    0.000    0.000    0.000    0.000 {built-in method time.time}
+        9    0.000    0.000    0.000    0.000 {method 'add' of 'set' objects}
+        8    0.000    0.000    0.000    0.000 {method 'append' of 'list' objects}
+        9    0.000    0.000    0.000    0.000 {method 'copy' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        9    0.000    0.000    0.000    0.000 {method 'discard' of 'set' objects}
+        9    0.000    0.000    0.000    0.000 {method 'format' of 'str' objects}
+       27    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+    83832    0.011    0.000    0.011    0.000 {method 'keys' of 'dict' objects}
+       18    0.000    0.000    0.000    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+        9    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+    20997    0.013    0.000    0.013    0.000 {method 'update' of 'dict' objects}
+    20971    0.003    0.000    0.003    0.000 {method 'values' of 'dict' objects}
+
+    get_nearby_man_moves() takes 54 of 74 moves
+
+    That method (I found) takes twice as long as get_man_moves(), but that's
+    /OK/, because else the branching would be horrible.
+
+    I wonder if there's a way to use bit arrays to find all the spaces within
+    two steps of a pieces.
+
+    Removing if's in the method (and using equivalent expressions) didn't help
+
+    But redoing the method worked. Instead of picking a square, and checking whether
+    it's within 2 steps of a piece, we first find a piece, and then do every space
+    within 2 steps
+
+    The new method is called test. On a blank board, it's faster:
+
+    In [4]: %timeit b.get_all_moves()
+1.18 ms ± 27.1 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
+In [5]: %timeit b.get_all_nearby_moves()
+2.75 ms ± 35.9 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+In [6]: %timeit b.test()
+1.33 ms ± 40.7 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
+
+Instead we randomly put men on the board:
+
+In [13]: b.pretty_print()
++○+++++○○++++○+++++
+++++++++++++++○+○++
+++○++++++++++++○+++
+++++++○++○++++++○+○
+++○++++++++++++++○○
+++++++○+++++++○++++
++++++++○+++++++++++
+○++○++○++●++○+++○○+
++++++++++++○○+○++++
++++++○+++++++++○○++
++++++○+++++++++++++
++○++++++++++++○++++
+++++++○○+○++++++++○
+++++○++++++○+○○○+++
+++++++++○++++++++++
+
+It's still faster:
+
+In [15]: %timeit b.get_all_nearby_moves()
+3.01 ms ± 90.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+In [17]: %timeit b.test()
+1.37 ms ± 23.1 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
+
+
+We put the men in a corner:
+
+In [20]: b.pretty_print()
+○○○○○○+++++++++++++
+○○○○○○+++++++++++++
+○○○○○○+++++++++++++
+○○○○○○+++++++++++++
+○○○○○○+++++++++++++
+○○○○○○+++++++++++++
++++++++++++++++++++
++++++++++●+++++++++
++++++++++++++++++++
++++++++++++++++++++
++++++++++++++++++++
++++++++++++++++++++
++++++++++++++++++++
++++++++++++++++++++
++++++++++++++++++++
+
+Still faster:
+
+In [23]: %timeit b.get_all_nearby_moves()
+2.34 ms ± 43.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+In [24]: %timeit b.test()
+546 µs ± 15.8 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
+Profiling confirms it---I stopped after 8 moves
+
+cProfile.run("main.run_game( (main.NegamaxABPlayer(depth = 3, test = True), main.NegamaxABPlayer(depth =3, test
+   ...:  = True) ) )")
+
+
+   ^C         12224399 function calls (11520265 primitive calls) in 23.849 seconds
+
+   Ordered by: standard name
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        9    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(amax)
+        9    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(amin)
+        1    0.000    0.000   23.849   23.849 <string>:1(<module>)
+        9    0.000    0.000    0.000    0.000 _asarray.py:14(asarray)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:1124(__init__)
+       18    0.000    0.000    0.000    0.000 arrayprint.py:1132(__call__)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:1473(_array_str_implementation)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:358(_get_formatdict)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:365(<lambda>)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:409(_get_format_function)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:461(wrapper)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:478(_array2string)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:516(array2string)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:60(_make_options_dict)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:65(<dictcomp>)
+       18    0.000    0.000    0.000    0.000 arrayprint.py:695(_extendLine)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:709(_formatArray)
+     27/9    0.000    0.000    0.000    0.000 arrayprint.py:718(recurser)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2584(_amax_dispatcher)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2589(amax)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2709(_amin_dispatcher)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2714(amin)
+       18    0.000    0.000    0.000    0.000 fromnumeric.py:70(_wrapreduction)
+       18    0.000    0.000    0.000    0.000 fromnumeric.py:71(<dictcomp>)
+        9    0.000    0.000    0.002    0.000 main.py:114(pretty_print_details)
+  1324494    0.354    0.000    0.354    0.000 main.py:142(increment)
+        8    0.002    0.000    0.028    0.003 main.py:150(get_man_moves)
+    20824    *3.922*   0.000   11.039    0.001 main.py:193(test)
+82649/20832    2.833    0.000    8.931    0.000 main.py:225(get_ball_moves)
+   883681    3.641    0.000    3.641    0.000 main.py:282(is_on_board)
+        8    0.000    0.000    0.030    0.004 main.py:287(get_all_moves)
+    20824    0.081    0.000   20.060    0.001 main.py:297(test_get_all_nearby_moves)
+        1    0.002    0.002   23.849   23.849 main.py:338(run_game)
+   621864    0.634    0.000    0.634    0.000 main.py:374(score)
+        2    0.000    0.000    0.000    0.000 main.py:453(__init__)
+642670/371    2.799    0.000   23.780    0.064 main.py:463(score)
+  1985688    1.175    0.000    7.850    0.000 main.py:49(__init__)
+        9    0.023    0.003   23.815    2.646 main.py:510(make_move)
+  1985687    6.675    0.000    6.675    0.000 main.py:60(<listcomp>)
+        1    0.000    0.000    0.000    0.000 main.py:62(<listcomp>)
+       15    0.000    0.000    0.000    0.000 main.py:63(<listcomp>)
+  1985687    1.249    0.000    9.098    0.000 main.py:68(copy)
+        9    0.001    0.000    0.002    0.000 main.py:76(pretty_string_details)
+        9    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+        1    0.000    0.000   23.849   23.849 {built-in method builtins.exec}
+        9    0.000    0.000    0.000    0.000 {built-in method builtins.id}
+       27    0.000    0.000    0.000    0.000 {built-in method builtins.issubclass}
+      171    0.000    0.000    0.000    0.000 {built-in method builtins.len}
+        9    0.000    0.000    0.000    0.000 {built-in method builtins.locals}
+  1284614    0.290    0.000    0.290    0.000 {built-in method builtins.max}
+      287    0.006    0.000    0.006    0.000 {built-in method builtins.print}
+        9    0.000    0.000    0.000    0.000 {built-in method numpy.array}
+       18    0.000    0.000    0.000    0.000 {built-in method numpy.core._multiarray_umath.implement_array_function}
+        9    0.000    0.000    0.000    0.000 {built-in method time.time}
+  1260442    0.135    0.000    0.135    0.000 {method 'add' of 'set' objects}
+        8    0.000    0.000    0.000    0.000 {method 'append' of 'list' objects}
+        9    0.000    0.000    0.000    0.000 {method 'copy' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        9    0.000    0.000    0.000    0.000 {method 'discard' of 'set' objects}
+        9    0.000    0.000    0.000    0.000 {method 'format' of 'str' objects}
+       27    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+    82658    0.011    0.000    0.011    0.000 {method 'keys' of 'dict' objects}
+       18    0.000    0.000    0.000    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+        9    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+    20840    0.011    0.000    0.011    0.000 {method 'update' of 'dict' objects}
+    20814    0.003    0.000    0.003    0.000 {method 'values' of 'dict' objects}
+
+
+    Now it's 3.9 out of 23.8 seconds
+
+
+* 4-ply vs PloddingPlayer
+Without the improvement to get_nearby_man_moves, it took
+4314 seconds to do 21 moves.
+
+['H11', 'I11', 'E ', 'J9', 'H13', 'SW ', 'J11', 'W ', 'J9', 'K11', 'E ', 'K12', 'E ', 'K9', 'J13', 'SW NW ', 'J9', 'K9', 'E ', 'L7', 'J11']
+
+
+
+With that improvement (and during a Zoom call), it took 2002 seconds
+['H11', 'I11', 'E ', 'J9', 'H13', 'SW ', 'J11', 'W ', 'J9', 'K11', 'E ', 'K12', 'E ', 'K9', 'J13', 'SW NW ', 'J9', 'K9', 'E ', 'L7', 'J11']
+
+Moves 22 and 23 happened at 3179 seconds, which was a long delay. I didn't think this was a
+complicated position:
+
+['H11', 'I11', 'E ', 'J9', 'H13', 'SW ', 'J11', 'W ', 'J9', 'K11', 'E ', 'K12', 'E ', 'K9', 'J13', 'SW NW ', 'J9', 'K9', 'E ', 'L7', 'J11']
+Duration of game so far is 2002.8510048389435 seconds
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H++++++++++++○++++++
+I+++++++++++++++++++
+J+++++++++●○+○++++++
+K++++++++○++○+++++++
+L++++++○++++++++++++
+M+++++++++++++++++++
+N+++++++++++++++++++
+O+++++++++++++++++++
+Side to move: Right
+Moves made: 21
+Ball at: [9 9]
+
+
+Maybe it was the Zoom call.
+
+
+Move 24 at 4013 seconds. Move 26 at 4238 seconds. Move 28 at 4737 seconds.
+
+Now it's move 39 after 8754 seconds.
+
+
+
+['H11', 'I11', 'E ', 'J9', 'H13', 'SW ', 'J11', 'W ', 'J9', 'K11', 'E ', 'K12', 'E ', 'K9', 'J13', 'SW NW ', 'J9', 'K9', 'E ', 'L7', 'J11', 'SW ', 'L9', 'W ', 'L7', 'M9', 'E ', 'M10', 'E ', 'M7', 'L11', 'SW NW ', 'L7', 'M7', 'E ', 'N5', 'L9', 'SW ', 'N7']
+Duration of game so far is 8754.058206796646 seconds
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H++++++++++++○++++++
+I+++++++++++++++++++
+J++++++++++○+○++++++
+K+++++++++++○+++++++
+L++++++++○+○++++++++
+M+++++++++○+++++++++
+N++++○●○++++++++++++
+O+++++++++++++++++++
+Side to move: Right
+Moves made: 39
+Ball at: [13  5]
+
+
+8754/19 moves (because only half of them are 4-ply) is 460 seconds per move.
+That's a little too slow. I admit that 4-ply doesn't lose to PloddingPlayer,
+but it doesn't show any genius in beating it either.
+
+Meanwhile, 3-ply is making one move every 15 seconds (on average); see next section.
+
+
+
+* The same game, but faster now
+
+
+
+main.run_game( (main.NegamaxABPlayer(depth = 3), main.NegamaxABPlayer(depth =3) ) )
+
+
+
+
+104274 calls
+['I11', 'K11', 'J12', 'K12', 'K13', 'L13', 'L14', 'M14', 'M15', 'N15', 'N14', 'K14', 'L15', 'N13', 'M11', 'L10', 'K10', 'K9', 'J9', 'J8', 'I8', 'I9', 'SE W NW E SW ', 'L7', 'N7', 'M6', 'N6', 'M7', 'N8', 'M8', 'N9', 'M9', 'N10', 'N5', 'O4', 'J7', 'I7', 'I6', 'H6', 'H5', 'G5', 'G4', 'F4', 'F3', 'E3', 'E2', 'NW ']
+Duration of game so far is 711.1409401893616 seconds
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D●++++++++++++++++++
+E++○++++++++++++++++
+F+++○+++++++++++++++
+G++++○++++++++++++++
+H+++++○+++++++++++++
+I++++++○++++++++++++
+J+++++++++++++++++++
+K+++++++++○○○+○+++++
+L++++++○+++++○+○++++
+M+++++○○○○++++○+++++
+N++++○○○○○○+++++++++
+O+++○+++++++++++++++
+Side to move: Right
+Moves made: 47
+Ball at: [3 0]
+
+Right has won
+
+
+
+And it was running 4-ply vs PloddingPlayer at the same time,
+which might have made it slower. (Although I thought I had multiple
+cores?)
