@@ -1,0 +1,436 @@
+#+TITLE: Notes
+<2021-03-29 Mon 16:43>
+
+* Me vs 3-ply
+
+main.run_game( (main.MinimaxPlayer(depth = 3), main.HumanPlayer() ) )
+
+
+['I11', 'J11', 'J12', 'K10', 'L14', 'K12', 'SE SE ', 'L14', 'NW W N ', 'I10', 'J9', 'I9', 'W SE ']
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H+++++++++++++++++++
+I+++++++++++++++++++
+J+++++++++++++++++++
+K+++++++++++++++++++
+L++++++++++●++++++++
+M+++++++++++++++++++
+N+++++++++++++++++++
+O+++++++++++++++++++
+Side to move: Right
+Moves made: 13
+Ball at: [11 10]
+
+
+I've lost one step of ground
+
+
+* 3-ply vs plodding player
+
+main.run_game( (main.MinimaxPlayer(depth = 3), main.PloddingPlayer() ) )
+
+['I11', 'H9', 'SE ', 'J11', 'W ', 'J9', 'I8', 'W ', 'H11', 'J7', 'N E E ', 'H11', 'W ', 'H9', 'W ', 'H7', 'I6', 'W ', 'J9', 'H5', 'S E E ', 'J9', 'W ', 'J7', 'W ', 'J5', 'I4', 'W ', 'H7', 'J3', 'N E E ', 'H7', 'W ', 'H5', 'W ', 'H3', 'I2', 'W ', 'J5', 'H1', 'S E E ', 'J5', 'W ', 'J3', 'W ', 'J1', 'W ']
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H○++++++++++++++++++
+I+++++++++++++++++++
+J+++++++++++++++++++
+K+++++++++++++++++++
+L+++++++++++++++++++
+M+++++++++++++++++++
+N+++++++++++++++++++
+O+++++++++++++++++++
+Side to move: Right
+Moves made: 47
+Ball at: [ 9 -1]
+
+Right has won
+
+PloddingPlayer wins! It's exploiting that when the board looks like
+this (next picture), everything looks the same to 3-ply, so it decides to /help/
+PloddingPlayer because that's the last move it considers.
+
+
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H○++++++++++++++++++
+I+++++++++++++++++++
+J++○●+++++++++++++++
+K+++++++++++++++++++
+L+++++++++++++++++++
+M+++++++++++++++++++
+N+++++++++++++++++++
+O+++++++++++++++++++
+Side to move: Left
+Moves made: 44
+Ball at: [9 3]
+
+* Introducing alpha-beta
+
+
+main.run_game( (main.MinimaxPlayer(depth = 3), main.MinimaxPlayer(depth =3) ) )
+
+['I11', 'K11', 'J12', 'K12', 'K13', 'L13', 'L14', 'M14', 'M15', 'N15', 'N14', 'K14', 'L15', 'N13', 'M11', 'L10', 'K10', 'K9', 'J9', 'J8', 'I8', 'I9']
+
+22 moves in 2502 seconds
+
+(19 moves in 1580 seconds)
+
+
+
+
+
+
+
+main.run_game( (main.NegamaxABPlayer(depth = 3), main.NegamaxABPlayer(depth =3) ) )
+
+No presorting
+
+['I11', 'K11', 'J12', 'K12', 'K13', 'L13', 'L14', 'M14', 'M15', 'N15', 'N14', 'K14', 'L15', 'N13', 'M11', 'L10', 'K10', 'K9', 'J9']
+
+
+19 moves in 1680 seconds
+
+
+
+
+
+So alpha-beta is slightly slower? Is it actually ever pruning?
+
+It seems to be pruning one step away from the nodes, but never before
+
+
+But at least the two move lists match
+
+
+
+
+* Number of calls
+
+Let P1 = main.run_game( (main.NegamaxPlayer(depth = 3), main.NegamaxPlayer(depth =3) ) )
+
+Let P2 = main.run_game( (main.NegamaxABPlayer(depth = 3), main.NegamaxABPlayer(depth =3) ) )
+    does not presort moves
+
+Let P3 = main.run_game( (main.NegamaxABPlayer(depth = 3), main.NegamaxABPlayer(depth =3) ) )
+    presorts moves using a 2-ply search
+
+Let P4 = main.run_game( (main.NegamaxABPlayer(depth = 3), main.NegamaxABPlayer(depth =3) ) )
+    presorts moves using a 1-ply search, i.e. it's likely to have a jump 1st in that list
+
+First move I11
+
+P1: 35656 calls, 9.03 secs
+P2: 5563 calls, 9.60 secs
+P3: 6387 calls, 10.93 secs
+P4: 5587 calls, 11.98 secs
+
+2nd move K11
+P1: 68518 calls, 27.02 secs (this is cumulative)
+p2: 9490 calls, 28.839 secs
+P3: 10862 calls, 32.82 secs
+P4: 9523 calls, 37.481 secs (longer because more programs were running at same time?)
+
+3rd move J12
+P1: 125696 calls, 64.2721 secs
+P2: 117663 calls, 68.58 secs
+P3: 119831 calls, 74.72 secs
+P4: 117706 calls, 88.9686 secs
+
+
+4th move K12
+P1: 148448 calls, 106.67 secs
+P2: 16389 calls, 111.23 secs
+P3: 18841 calls, 118.05 secs,
+P4: 16435 calls, 138.09 secs
+
+
+P3 needed slightly more calls because it was doing a more advanced pre-sort
+
+The number of call needed for A-B seemed to oscillate depending on whose turn it was
+
+The pre-orderings used by P2, P3, P4 were very similar.
+e.g. for move 4, they were
+['F8', 'F9', 'F10', 'F11', 'F12', 'G8', 'G9', 'G10', 'G11', 'G12', 'G13', 'H8', 'H9', 'H11', 'H12', 'H13', 'H14', 'I8', 'I9', 'I10', 'I12', 'I13', 'I14', 'J8', 'J9', 'J10', 'J11', 'J13', 'J14', 'K9', 'K10', 'K12', 'K13', 'K14', 'L9', 'L10', 'L11', 'L12', 'L13', 'L14', 'M9', 'M10', 'M11', 'M12', 'M13', 'SE ']
+['F8', 'F9', 'F10', 'F11', 'F12', 'G8', 'G10', 'G11', 'G12', 'G13', 'H8', 'H11', 'H12', 'H13', 'I8', 'I10', 'I12', 'I13', 'J8', 'J9', 'J10', 'J11', 'J12', 'J13', 'K10', 'K12', 'K13', 'L11', 'L12', 'L13', 'M10', 'M11', 'M12', 'M13', 'SE ', 'SE SW ', 'L10', 'G9', 'H9', 'I9', 'K9', 'L9', 'M9']
+['F8', 'F9', 'F10', 'F11', 'F12', 'G8', 'G9', 'G10', 'G11', 'G12', 'G13', 'H8', 'H9', 'H11', 'H12', 'H13', 'H14', 'I8', 'I9', 'I10', 'I12', 'I13', 'I14', 'J8', 'J9', 'J10', 'J11', 'J13', 'J14', 'K9', 'K10', 'K12', 'K13', 'K14', 'L9', 'L10', 'L11', 'L12', 'L13', 'L14', 'M9', 'M10', 'M11', 'M12', 'M13', 'SE ']
+
+
+It was weird how AB could use an order of magnitude fewer calls and still take the
+same amount of time. I need to profile it
+
+
+
+
+* 4-ply vs 4-ply
+
+main.run_game( (main.NegamaxABPlayer(depth = 4), main.NegamaxABPlayer(depth =4) ) )
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H+++++++++●+++++++++
+I+++++++++++++++++++
+J+++++++++++++++++++
+K+++++++++++++++++++
+L+++++++++++++++++++
+M+++++++++++++++++++
+N+++++++++++++++++++
+O+++++++++++++++++++
+Side to move: Left
+Moves made: 0
+Ball at: [7 9]
+
+Applying static evaluator to current position:
+0.5
+Initial score is 0
+['G11', 'H11', 'I11', 'F8', 'F9', 'F10', 'F11', 'F12', 'G8', 'G10', 'G12', 'H8', 'H12', 'I8', 'I10', 'I12', 'J8', 'J9', 'J10', 'J11', 'J12', 'G9', 'H9', 'I9']
+New best move is G11 which has score of 0.5
+New best move is H11 which has score of 0.6111111111111112
+['H11']
+Duration of game so far is 83.52776503562927 seconds
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H+++++++++●○++++++++
+I+++++++++++++++++++
+J+++++++++++++++++++
+K+++++++++++++++++++
+L+++++++++++++++++++
+M+++++++++++++++++++
+N+++++++++++++++++++
+O+++++++++++++++++++
+Side to move: Right
+Moves made: 1
+Ball at: [7 9]
+
+Applying static evaluator to current position:
+0.5
+Initial score is 0
+['F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'G8', 'G9', 'G10', 'G11', 'G12', 'H8', 'H9', 'I8', 'I9', 'I10', 'I11', 'I12', 'J8', 'J9', 'J10', 'J11', 'J12', 'J13', 'E ', 'H12', 'G13', 'H13', 'I13']
+New best move is F8 which has score of 0.2777777777777778
+New best move is F9 which has score of 0.2777777777777778
+New best move is F10 which has score of 0.2777777777777778
+New best move is F11 which has score of 0.2777777777777778
+New best move is F12 which has score of 0.2777777777777778
+New best move is F13 which has score of 0.2777777777777778
+New best move is G8 which has score of 0.2777777777777778
+New best move is G9 which has score of 0.38888888888888884
+New best move is G10 which has score of 0.38888888888888884
+New best move is G11 which has score of 0.38888888888888884
+New best move is H9 which has score of 0.38888888888888884
+New best move is I9 which has score of 0.38888888888888884
+New best move is I10 which has score of 0.38888888888888884
+New best move is I11 which has score of 0.38888888888888884
+['H11', 'I11']
+Duration of game so far is 302.7638237476349 seconds
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H+++++++++●○++++++++
+I++++++++++○++++++++
+J+++++++++++++++++++
+K+++++++++++++++++++
+L+++++++++++++++++++
+M+++++++++++++++++++
+N+++++++++++++++++++
+O+++++++++++++++++++
+Side to move: Left
+Moves made: 2
+Ball at: [7 9]
+
+Applying static evaluator to current position:
+0.5
+Initial score is 0
+['H12', 'SE ', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'G8', 'G10', 'G11', 'G12', 'G13', 'H8', 'H13', 'I8', 'I10', 'I12', 'I13', 'J8', 'J11', 'J12', 'J13', 'K10', 'K11', 'K12', 'K13', 'E ', 'E SW ', 'J10', 'G9', 'H9', 'I9', 'J9', 'K9']
+New best move is H12 which has score of 0.5555555555555556
+
+['H11', 'I11', 'H12']
+Duration of game so far is 1340.3641250133514 seconds
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H+++++++++●○○+++++++
+I++++++++++○++++++++
+J+++++++++++++++++++
+K+++++++++++++++++++
+L+++++++++++++++++++
+M+++++++++++++++++++
+N+++++++++++++++++++
+O+++++++++++++++++++
+Side to move: Right
+Moves made: 3
+Ball at: [7 9]
+
+Applying static evaluator to current position:
+0.5
+Initial score is 0
+['I12', 'G12', 'SE ', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'F14', 'G8', 'G9', 'G10', 'G11', 'G13', 'H8', 'H9', 'I8', 'I9', 'I10', 'J8', 'J9', 'J10', 'J11', 'J12', 'J14', 'K9', 'K10', 'K11', 'K12', 'E ', 'H13', 'I13', 'J13', 'K13', 'G14', 'H14', 'I14']
+New best move is I12 which has score of 0.4444444444444444
+['H11', 'I11', 'H12', 'I12']
+Duration of game so far is 2437.7154240608215 seconds
+          1111111111
+ 1234567890123456789
+A+++++++++++++++++++
+B+++++++++++++++++++
+C+++++++++++++++++++
+D+++++++++++++++++++
+E+++++++++++++++++++
+F+++++++++++++++++++
+G+++++++++++++++++++
+H+++++++++●○○+++++++
+I++++++++++○○+++++++
+J+++++++++++++++++++
+K+++++++++++++++++++
+L+++++++++++++++++++
+M+++++++++++++++++++
+N+++++++++++++++++++
+O+++++++++++++++++++
+Side to move: Left
+Moves made: 4
+Ball at: [7 9]
+
+Applying static evaluator to current position:
+0.5
+Initial score is 0
+['G12', 'J12', 'E ', 'E SW ', 'E SW N ', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'F14', 'G8', 'G11', 'G13', 'G14', 'H8', 'H13', 'H14', 'I8', 'I13', 'I14', 'J8', 'J11', 'J13', 'J14', 'K9', 'K11', 'K12', 'K13', 'K14', 'SE ', 'SE N ', 'SE N SW ', 'G10', 'I10', 'J10', 'K10', 'G9', 'H9', 'I9', 'J9']
+New best move is G12 which has score of 0.5555555555555556
+New best move is J12 which has score of 0.5555555555555556
+^C
+
+
+I was running other programs at the same time, which maybe made it slower.
+But not much slower.
+
+* Profiling
+cProfile.run("main.run_game( (main.NegamaxABPlayer(depth = 3), main.NegamaxABPlayer(depth =3) ) )")
+
+Turned off preordering
+
+Ran for 8 moves---855 secs, a little slower
+
+Results:
+
+Ordered by: standard name
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        9    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(amax)
+        9    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(amin)
+        1    0.000    0.000  855.241  855.241 <string>:1(<module>)
+        9    0.000    0.000    0.000    0.000 _asarray.py:14(asarray)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:1124(__init__)
+       18    0.000    0.000    0.000    0.000 arrayprint.py:1132(__call__)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:1473(_array_str_implementation)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:358(_get_formatdict)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:365(<lambda>)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:409(_get_format_function)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:461(wrapper)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:478(_array2string)
+        9    0.000    0.000    0.001    0.000 arrayprint.py:516(array2string)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:60(_make_options_dict)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:65(<dictcomp>)
+       18    0.000    0.000    0.000    0.000 arrayprint.py:695(_extendLine)
+        9    0.000    0.000    0.000    0.000 arrayprint.py:709(_formatArray)
+     27/9    /0.000/    0.000    *0.000*    0.000 arrayprint.py:718(recurser)
+567136990/1884177  /390.914/    0.000  *791.233*    0.000 copy.py:128(deepcopy)
+536990171   /39.844/    0.000   *39.844*    0.000 copy.py:182(_deepcopy_atomic)
+30146818/1884177  /161.185/    0.000  *787.313*    0.000 copy.py:200(_deepcopy_list)
+ 30146816   /12.870/    0.000   *18.299*    0.000 copy.py:242(_keep_alive)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2584(_amax_dispatcher)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2589(amax)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2709(_amin_dispatcher)
+        9    0.000    0.000    0.000    0.000 fromnumeric.py:2714(amin)
+       18    0.000    0.000    0.000    0.000 fromnumeric.py:70(_wrapreduction)
+       18    0.000    0.000    0.000    0.000 fromnumeric.py:71(<dictcomp>)
+        9    0.000    0.000    0.002    0.000 main.py:113(pretty_print_details)
+  1260319    0.506    0.000    0.506    0.000 main.py:141(increment)
+        8    0.004    0.000    *0.977*    0.122 main.py:149(get_man_moves)
+    20011   48.742    0.002  *556.412*    0.028 main.py:165(get_nearby_man_moves)
+77981/20018    3.687    0.000  *294.203*    0.015 main.py:192(get_ball_moves)
+   831599    3.410    0.000    *3.410*    0.000 main.py:249(is_on_board)
+        8    0.000    0.000    1.055    0.132 main.py:254(get_all_moves)
+    20011    0.060    0.000  850.614    0.043 main.py:259(get_all_nearby_moves)
+        1    0.003    0.003  855.241  855.241 main.py:300(run_game)
+   562834    0.529    0.000    0.529    0.000 main.py:336(score)
+        2    0.000    0.000    0.000    0.000 main.py:415(__init__)
+582827/360    2.734    0.000  *853.844*    2.372 main.py:421(score)
+        9    0.030    0.003  854.176   94.908 main.py:463(make_move)
+  1884178    2.217    0.000  793.450    0.000 main.py:48(__init__)
+        1    0.000    0.000    0.000    0.000 main.py:61(<listcomp>)
+       15    0.000    0.000    0.000    0.000 main.py:62(<listcomp>)
+  1884177    1.784    0.000  795.234    0.000 main.py:67(copy)
+        9    0.001    0.000    0.002    0.000 main.py:75(pretty_string_details)
+        9    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+        1    0.000    0.000  855.241  855.241 {built-in method builtins.exec}
+629314809   /51.399/    0.000   51.399    0.000 {built-in method builtins.id}
+       27    0.000    0.000    0.000    0.000 {built-in method builtins.issubclass}
+      171    0.000    0.000    0.000    0.000 {built-in method builtins.len}
+        9    0.000    0.000    0.000    0.000 {built-in method builtins.locals}
+  1164950    0.260    0.000    0.260    0.000 {built-in method builtins.max}
+      301    0.006    0.000    0.006    0.000 {built-in method builtins.print}
+        9    0.000    0.000    0.000    0.000 {built-in method numpy.array}
+       18    0.000    0.000    0.000    0.000 {built-in method numpy.core._multiarray_umath.implement_array_function}
+        9    0.000    0.000    0.000    0.000 {built-in method time.time}
+        9    0.000    0.000    0.000    0.000 {method 'add' of 'set' objects}
+593515459   /49.483/    0.000   49.483    0.000 {method 'append' of 'list' objects}
+        9    0.000    0.000    0.000    0.000 {method 'copy' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        9    0.000    0.000    0.000    0.000 {method 'discard' of 'set' objects}
+        9    0.000    0.000    0.000    0.000 {method 'format' of 'str' objects}
+1134273980   /85.539/    0.000   85.539    0.000 {method 'get' of 'dict' objects}
+       27    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+    77990    0.013    0.000    0.013    0.000 {method 'keys' of 'dict' objects}
+       18    0.000    0.000    0.000    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+        9    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+    20027    0.017    0.000    0.017    0.000 {method 'update' of 'dict' objects}
+    20001    0.004    0.000    0.004    0.000 {method 'values' of 'dict' objects}
+
+Hmm. We spent 390/855 secs inside deepcopy and 161 secs inside of deepcopy_list,
+not counting whatever they called.
+That's why we spend 795 secs (cumulative) inside Board's copy method.
+
+Let's fix that.

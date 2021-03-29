@@ -85,12 +85,13 @@ O+++++++++++++++++++
 
 
 If it were Right's turn, they could type ~W~ and jump all three men
-at once, since making a shorter jump to the west isn't possible.
+(white circles) at once, since making a shorter jump to the west isn't
+possible.
 
 
 Currently the only AI is PloddingPlayer, which either places a man
-(white circle) directly next to the ball, or makes a jump if that's
-possible. You can play against it by running:
+directly next to the ball, or makes a jump if that's possible. You can
+play against it by running:
 
 
 #+BEGIN_SRC python
