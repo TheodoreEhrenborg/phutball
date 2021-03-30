@@ -1,4 +1,4 @@
-* phutball
+#+TITLE: phutball
 
 This repository contains (well, it will contain) several algorithms
 that play [[https://en.wikipedia.org/wiki/Phutball][Phutball]].

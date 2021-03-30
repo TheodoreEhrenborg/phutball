@@ -1,6 +1,3 @@
-# Try profiling the code at some point
-# Is it worth it to make the array into a numpy array
-# and use numbers instead of strings?
 import string
 import numpy as np
 import time
@@ -207,7 +204,7 @@ class Board:
         #        print(moves)
         if moves is None:
             moves = {}
-        if self.ball_at[1] in (-1, LENGTH):
+        if not self.is_on_board(self.ball_at):
             # We jumped off the endzones and can't make any more jumps
             return moves
         for direction in DIRECTIONS.keys():
@@ -236,7 +233,7 @@ class Board:
                 )  # Clear out what we jumped over
                 new.array[temp[0]][temp[1]] = EMPTY
             if new.is_on_board(end_point):
-                # Move the ball
+                # Put the ball at where it landed
                 new.array[end_point[0]][end_point[1]] = BALL
             new.ball_at = (
                 end_point  # This may be off the board
@@ -413,7 +410,7 @@ class NegamaxPlayer:
                     "which has score of",
                     max_score,
                 )
-        print(self.calls, "calls")
+        print(self.calls, "calls to static evaluator")
         return max_move
 
 
@@ -491,7 +488,7 @@ class NegamaxABPlayer:
                 ),
                 reverse=True,
             )
-        print(move_list)
+        # print(move_list)
         for move in move_list:
             temp_score = self.score(
                 possible_moves[move],
@@ -515,5 +512,5 @@ class NegamaxABPlayer:
                 # This is the alpha-beta break, except at the
                 # top level it just means we've won
                 break
-        print(self.calls, "calls")
+        print(self.calls, "calls to static evaluator")
         return max_move
