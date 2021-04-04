@@ -1,6 +1,8 @@
 import string
 import numpy as np
 import time
+import pickle
+import random
 
 LENGTH = 19
 WIDTH = 15
@@ -20,7 +22,8 @@ DIRECTIONS = {
 # I have had lots of fun dealing with
 # formatting problems caused by circle sizes
 SMALL_WHITE_CIRCLE = "⚬"  # Looks good on WordPress
-SMALL_BLACK_CIRCLE = "•"
+SMALL_BLACK_CIRCLE = "•"  # But it looks better if I use the bigger circles and
+# then take a screenshot
 WHITE_CIRCLE = "○"  # Looks good on GitHub
 BLACK_CIRCLE = "●"
 
@@ -207,6 +210,7 @@ class Board:
         if not self.is_on_board(self.ball_at):
             # We jumped off the endzones and can't make any more jumps
             return moves
+        end_point = []
         for direction in DIRECTIONS.keys():
             vec = DIRECTIONS[direction]
             new = self.copy()
@@ -300,32 +304,57 @@ class PloddingPlayer:
             return string.ascii_uppercase[i] + str(j)
 
 
-def run_game(players=[HumanPlayer(), HumanPlayer()]):
+def run_game(
+    players=[HumanPlayer(), HumanPlayer()],
+    truncate_moves=10 ** 6,
+    truncate_time=10 ** 9,
+    random_moves=0,
+    quiet=False,
+    pickle_in=None,
+):
     """Conducts a game between two Players, [left, right]"""
     num_moves_made = 0
     moves_made = []
     current_board = Board()
-    current_board.pretty_print_details()
+    if not quiet:
+        current_board.pretty_print_details()
     start_time = time.time()
-    while True:
+    while (
+        num_moves_made < truncate_moves
+        and time.time() - start_time < truncate_time
+    ):
         player = players[num_moves_made % 2]
         move = player.make_move(current_board.copy())
+        all_moves = current_board.get_all_moves()
+        all_move_names = list(all_moves)
+        if current_board.moves_made < random_moves:
+            move = random.choice(
+                list(current_board.get_all_nearby_moves())
+            )
         moves_made.append(move)
-        print(moves_made)
-        print(
-            "Duration of game so far is",
-            time.time() - start_time,
-            "seconds",
-        )
+        if pickle_in is not None:
+            # self.pickle_in is the file name
+            with open(pickle_in, "ab") as f:
+                pickle.dump(moves_made, f)
+        if not quiet:
+            print(moves_made)
+            print(
+                "Duration of game so far is",
+                time.time() - start_time,
+                "seconds",
+            )
         #        current_board.pretty_print_details()
-        current_board = current_board.get_all_moves()[move]
-        current_board.pretty_print_details()
+        current_board = all_moves[move]
+        if not quiet:
+            current_board.pretty_print_details()
         # Previous line makes the move, and returns an error if invalid
         if current_board.ball_at[1] <= 0:
-            print("Right has won")
+            if not quiet:
+                print("Right has won")
             return
         if current_board.ball_at[1] >= LENGTH - 1:
-            print("Left has won")
+            if not quiet:
+                print("Left has won")
             return
         num_moves_made += 1
 
@@ -352,6 +381,9 @@ class LocationEvaluator:
 
 
 class NegamaxPlayer:
+    """Besides not having alpha-beta, this also lacks some bells and
+    whistles that NegamaxABPlayer has"""
+
     def __init__(
         self, depth=1, static_evaluator=LocationEvaluator()
     ):
@@ -419,9 +451,14 @@ class NegamaxABPlayer:
         self,
         depth=1,
         static_evaluator=LocationEvaluator(),
+        pickle_in=None,
+        quiet=False,
     ):
+
         self.depth = depth
         self.static_evaluator = static_evaluator
+        self.pickle_in = pickle_in
+        self.quiet = quiet
 
     def score(self, board, depth, alpha, beta):
         """Returns the score of the player to move"""
@@ -467,13 +504,15 @@ class NegamaxABPlayer:
 
     def make_move(self, board):
         self.calls = 0
-        print(
-            "Applying static evaluator to current position:"
-        )
-        print(self.static_evaluator.score(board))
+        if not self.quiet:
+            print(
+                "Applying static evaluator to current position:"
+            )
+            print(self.static_evaluator.score(board))
         max_move = None
         max_score = 0
-        print("Initial score is 0")
+        if not self.quiet:
+            print("Initial score is 0")
         possible_moves = board.get_all_nearby_moves()
         move_list = list(possible_moves.keys())
         if self.depth > 1 and False:
@@ -502,15 +541,21 @@ class NegamaxABPlayer:
             if corrected_score >= max_score:
                 max_score = corrected_score
                 max_move = move
-                print(
-                    "New best move is",
-                    max_move,
-                    "which has score of",
-                    max_score,
-                )
+                if not self.quiet:
+                    print(
+                        "New best move is",
+                        max_move,
+                        "which has score of",
+                        max_score,
+                    )
             if max_score == 1:
                 # This is the alpha-beta break, except at the
                 # top level it just means we've won
                 break
-        print(self.calls, "calls to static evaluator")
+        if self.pickle_in is not None:
+            # self.pickle_in is the file name
+            with open(self.pickle_in, "ab") as f:
+                pickle.dump((board, max_score), f)
+        if not self.quiet:
+            print(self.calls, "calls to static evaluator")
         return max_move
