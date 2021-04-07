@@ -3,6 +3,7 @@ import numpy as np
 import time
 import pickle
 import random
+import tensorflow as tf
 
 LENGTH = 19
 WIDTH = 15
@@ -64,6 +65,66 @@ class Board:
                 for j in range(WIDTH)
             ]
             self.array[ball_at[0]][ball_at[1]] = BALL
+
+    def randomize(self, num_men=30):
+        """Randomizes the board"""
+        self.moves_made = 0
+        self.side_to_move = random.choice(["Left", "Right"])
+        self.ball_at = np.array(
+            (
+                random.randrange(0, WIDTH),
+                random.randrange(1, LENGTH - 1),
+            )
+        )
+        # Don't put the ball in the goals
+        self.array = [
+            [EMPTY for i in range(LENGTH)]
+            for j in range(WIDTH)
+        ]
+        for i in range(num_men):
+            self.array[random.randrange(0, WIDTH)][
+                random.randrange(0, LENGTH)
+            ] = MAN
+        self.array[self.ball_at[0]][self.ball_at[1]] = BALL
+
+    def imitation(self, other):
+        """Returns a copy of other, but thus the copy has all the
+        latest methods of Board
+
+        Uh, maybe this is unnecessary? If I import main before unpickling,
+        the old Boards seem to pick up the new methods"""
+        return Board(
+            side_to_move=other.side_to_move,
+            moves_made=other.moves_made,
+            array=other.array,
+            ball_at=other.ball_at,
+        )
+
+    def get_vector(self):
+        """Returns a numpy array that can be fed into a neural
+        network. The first LENGTH*WIDTH elements are the positions
+        of the men, the next LENGTH*WIDTH elements are the position
+        of the ball, and the last element is which side is to move:
+        0 for Left, 1 for Right"""
+        output = []
+        for i in range(WIDTH):
+            for j in range(LENGTH):
+                if self.array[i][j] == MAN:
+                    output.append(1)
+                else:
+                    output.append(0)
+        for i in range(WIDTH):
+            for j in range(LENGTH):
+                if self.array[i][j] == BALL:
+                    output.append(1)
+                else:  # I might be able to speed this up by adding all
+                    # zeros and then setting where the ball is
+                    output.append(0)
+        if self.side_to_move == "Left":
+            output.append(0)
+        else:
+            output.append(1)
+        return np.array(output)
 
     def copy(self):
         return Board(
@@ -359,6 +420,28 @@ def run_game(
         num_moves_made += 1
 
 
+class NeuralNetEvaluator:
+    """Uses a saved neural net to evaluate the current position"""
+
+    def __init__(
+        self,
+        name="saved_model/2021-04-07-relu-model",
+        weight=1,
+    ):
+        self.model = tf.keras.models.load_model(name)
+        self.weight = weight
+
+    def score(self, board):
+        vec = board.get_vector()
+        vec = vec[np.newaxis, ...]  # Needs to be 2d
+        value = float(self.model.predict(vec))
+        if board.side_to_move != "Left":
+            value = 1 - value
+        return self.weight * value + (
+            1 - self.weight
+        ) * LocationEvaluator().score(board)
+
+
 class LocationEvaluator:
     """Returns the normalized position of the ball. The score is close to 1 if the
     ball is near the goal of the player to move. It's 0 in the converse case
@@ -559,3 +642,18 @@ class NegamaxABPlayer:
         if not self.quiet:
             print(self.calls, "calls to static evaluator")
         return max_move
+
+
+class HailMary:
+    def __init__(self, param=0.5):
+        self.nn = NegamaxABPlayer(
+            static_evaluator=NeuralNetEvaluator(),
+            depth=1,
+        )
+        self.loc = NegamaxABPlayer(depth=3)
+        self.param = param
+
+    def make_move(self, board):
+        if random.random() < self.param:
+            return self.nn.make_move(board)
+        return self.loc.make_move(board)
