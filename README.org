@@ -98,3 +98,16 @@ play against it by running:
 import main
 main.run_game( (main.PloddingPlayer(), main.HumanPlayer() ) )
 #+END_SRC
+
+
+* Files
+
+~data.zip~ currently contains these files, added using ~zip data.zip *pickle~:
+
+#+BEGIN_EXAMPLE
+$ du -hs *pickle
+ 22M  2021-04-02-3ply-boards1.pickle
+3.0M  2021-04-02-3ply-games1.pickle
+3.0M  2021-04-07-3ply-boards2.pickle
+103M  2021-04-07-3ply-data1.pickle
+#+END_EXAMPLE
