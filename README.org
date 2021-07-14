@@ -1,7 +1,7 @@
 #+TITLE: phutball
 
-This repository contains (well, it will contain) several algorithms
-that play [[https://en.wikipedia.org/wiki/Phutball][Phutball]].
+This repository contains several algorithms
+that play [[https://en.wikipedia.org/wiki/Phutball][Phutball]] (and it will contain more eventually).
 
 I oriented the board horizontally, following Berlekamp, Conway, and
 Guy's convention in /Winning Ways for Your Mathematical Plays/ (pp.
@@ -89,7 +89,7 @@ If it were Right's turn, they could type ~W~ and jump all three men
 possible.
 
 
-Currently the only AI is PloddingPlayer, which either places a man
+The simplest AI is PloddingPlayer, which either places a man
 directly next to the ball, or makes a jump if that's possible. You can
 play against it by running:
 
@@ -99,6 +99,8 @@ import main
 main.run_game( (main.PloddingPlayer(), main.HumanPlayer() ) )
 #+END_SRC
 
+A more advanced AI is NegamaxABPlayer. Unfortunately it's currently weaker than PloddingPlayer.
+(See [[https://lettertok.com/index.php/2021/03/24/rules-of-phutball/][these]] [[http://lettertok.com/index.php/2021/03/31/a-fancier-algorithm/][three]] [[http://lettertok.com/index.php/2021/04/07/groundhog-day/][posts]] for more discussion of this. Likely I need to make better training data.)
 
 * Files
 
