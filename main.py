@@ -126,6 +126,26 @@ class Board:
             output.append(1)
         return np.array(output)
 
+    def get_flipped_3d_array(self):
+        """Returns a numpy array that can be fed into a neural network. It is LENGTH by
+        WIDTH by 2, where the top and bottom layer encodes men and the bottom
+        layer encodes the ball. If the player is Right, the array is flipped
+        along the length axis, so the player to move always is trying to get the
+        ball in the right-hand goal
+
+        """
+
+        output_array = np.zeros((LENGTH, WIDTH, 2))
+        for i in range(WIDTH):
+            for j in range(LENGTH):
+                if self.array[i][j] == MAN:
+                    output_array[j][i][0] = 1
+                elif self.array[i][j] == BALL:
+                    output_array[j][i][1] = 1
+        if self.side_to_move != "Left":
+            output_array = np.flip(output_array, 0)
+        return output_array
+
     def copy(self):
         return Board(
             side_to_move=self.side_to_move,
@@ -404,11 +424,12 @@ def run_game(
                 time.time() - start_time,
                 "seconds",
             )
-        #        current_board.pretty_print_details()
+            #        current_board.pretty_print_details()
         current_board = all_moves[move]
         if not quiet:
             current_board.pretty_print_details()
         # Previous line makes the move, and returns an error if invalid
+        # print(current_board.get_flipped_3d_array())
         if current_board.ball_at[1] <= 0:
             if not quiet:
                 print("Right has won")
@@ -420,7 +441,12 @@ def run_game(
         num_moves_made += 1
 
 
-class NeuralNetEvaluator:
+class Evaluator:
+    def get_ready(self, board, depth):
+        pass
+
+
+class NeuralNetEvaluator(Evaluator):
     """Uses a saved neural net to evaluate the current position"""
 
     def __init__(
@@ -442,7 +468,81 @@ class NeuralNetEvaluator:
         ) * LocationEvaluator().score(board)
 
 
-class LocationEvaluator:
+class CNNEvaluator(Evaluator):
+    """Uses a saved neural net to evaluate the current position"""
+
+    def __init__(
+        self,
+        name="saved_model/2021-07-22-model"
+        #  weight=1,
+    ):
+        self.model = tf.keras.models.load_model(name)
+
+    #    self.weight = weight
+
+    def score(self, board):
+        vec = board.get_flipped_3d_array()
+        vec = vec[np.newaxis, ...]  # Needs to be 2d
+        value = float(self.model.predict(vec))
+        # value is already for the player to move
+        return value
+
+
+class ParallelCNNEvaluator(Evaluator):
+    """Uses a saved neural net to evaluate the current position"""
+
+    def __init__(self, name="saved_model/2021-07-22-model"):
+        self.model = tf.keras.models.load_model(name)
+        self.score_dict = None
+
+    def get_ready(self, board, depth):
+        # print("Starting get_ready")
+        list_of_boards = []
+        list_of_boards.append(board.get_flipped_3d_array())
+        list_of_boards += self.search_boards(board, depth)
+        board_array = np.array(list_of_boards)
+        # print("Sending boards to neural net...")
+        value_list = list(self.model.predict(board_array))
+        # print("Neural net is done")
+        hashable = [x.tostring() for x in list_of_boards]
+        # print(hashable[0])
+        self.score_dict = dict(zip(hashable, value_list))
+        # print("Done with get_ready")
+
+    def search_boards(self, board, depth):
+        """Goes depth boards forward, and adds all the 3d arrays
+        to a list
+        Doesn't do the depth-1 boards, since Alpha-Beta doesn't ask for that anymore"""
+        list_of_boards = []
+        if board.ball_at[1] in (
+            0,
+            -1,
+            LENGTH - 1,
+            LENGTH,
+        ):
+            # If we've won/lost, the neural net won't be
+            # asked about this
+            # position or any children
+            return []
+        if depth == 0:
+            # If we've run out of depth, add this board
+            list_of_boards.append(
+                board.get_flipped_3d_array()
+            )
+            return list_of_boards
+        possible_moves = board.get_all_nearby_moves()
+        for board in possible_moves.values():
+            list_of_boards += self.search_boards(
+                board, depth - 1
+            )
+        return list_of_boards
+
+    def score(self, board):
+        array = board.get_flipped_3d_array()
+        return self.score_dict[array.tostring()]
+
+
+class LocationEvaluator(Evaluator):
     """Returns the normalized position of the ball. The score is close to 1 if the
     ball is near the goal of the player to move. It's 0 in the converse case
 
@@ -587,6 +687,7 @@ class NegamaxABPlayer:
 
     def make_move(self, board):
         self.calls = 0
+        self.static_evaluator.get_ready(board, self.depth)
         if not self.quiet:
             print(
                 "Applying static evaluator to current position:"
