@@ -636,12 +636,14 @@ class NegamaxABPlayer:
         static_evaluator=LocationEvaluator(),
         pickle_in=None,
         quiet=False,
+        top_few=1,  #  Pick randomly from top top_few moves
     ):
 
         self.depth = depth
         self.static_evaluator = static_evaluator
         self.pickle_in = pickle_in
         self.quiet = quiet
+        self.top_few = top_few
 
     def score(self, board, depth, alpha, beta):
         """Returns the score of the player to move"""
@@ -712,6 +714,7 @@ class NegamaxABPlayer:
                 reverse=True,
             )
         # print(move_list)
+        list_of_tuples = []
         for move in move_list:
             temp_score = self.score(
                 possible_moves[move],
@@ -722,6 +725,7 @@ class NegamaxABPlayer:
             corrected_score = 1 - temp_score
             # We are the player to move, so we maximize
             # the score of our move
+            list_of_tuples.append((move, corrected_score))
             if corrected_score >= max_score:
                 max_score = corrected_score
                 max_move = move
@@ -740,9 +744,28 @@ class NegamaxABPlayer:
             # self.pickle_in is the file name
             with open(self.pickle_in, "ab") as f:
                 pickle.dump((board, max_score), f)
+                # Always save the actual score, even if we're making a random move
         if not self.quiet:
             print(self.calls, "calls to static evaluator")
-        return max_move
+        if self.top_few == 1:
+            return max_move
+        if (
+            len(list_of_tuples) < self.top_few
+            or max_score == 1
+        ):
+            # These are edge cases, so it's best to not add any weirdness
+            return max_move
+        list_of_tuples.sort(
+            key=lambda x: x[1], reverse=True
+        )
+        # Now sorted from best to worst
+        choice = random.randrange(self.top_few)
+        if not self.quiet:
+            print(
+                "Made random choice. Move ranking:",
+                choice + 1,
+            )
+        return list_of_tuples[choice][0]
 
 
 class HailMary:
