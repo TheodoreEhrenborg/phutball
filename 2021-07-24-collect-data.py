@@ -29,5 +29,5 @@ while True:
         b.randomize(random.randint(0, 30))
         player.make_move(b.copy())
         if count % 10 == 0:
-            print(count)
+            print(count, "boards")
     time.sleep(60)
