@@ -11,7 +11,7 @@ import is_daytime
 
 player = main.NegamaxABPlayer(
     depth=2,
-    pickle_in="2021-08-11-3ply-boards6-random.pickle",
+    pickle_in="2021-08-11-3ply-v2-boards6-random.pickle",
     quiet=True,
     static_evaluator=main.ParallelCNNEvaluator(
         name="saved_model/2021-08-11-model"
