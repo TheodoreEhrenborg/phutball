@@ -510,8 +510,8 @@ class ParallelCNNEvaluator(Evaluator):
         # print("Done with get_ready")
 
     def search_boards(self, board, depth):
-        """Goes depth boards forward, and adds all the 3d arrays
-        to a list
+        """Goes depth boards forward, and adds all the 3d arrays at the deepest depth
+        to a list.
         Doesn't do the depth-1 boards, since Alpha-Beta doesn't ask for that anymore"""
         list_of_boards = []
         if board.ball_at[1] in (
@@ -636,7 +636,7 @@ class NegamaxABPlayer:
         static_evaluator=LocationEvaluator(),
         pickle_in=None,
         quiet=False,
-        top_few=1,  #  Pick randomly from top top_few moves
+        top_few=1,  # Pick randomly from top top_few moves
     ):
 
         self.depth = depth
@@ -689,7 +689,14 @@ class NegamaxABPlayer:
 
     def make_move(self, board):
         self.calls = 0
-        self.static_evaluator.get_ready(board, self.depth)
+        if self.depth < 3:
+            self.static_evaluator.get_ready(
+                board, self.depth
+            )
+        else:
+            self.static_evaluator.get_ready(
+                board, 1
+            )  # Just to apply to current position
         if not self.quiet:
             print(
                 "Applying static evaluator to current position:"
@@ -716,6 +723,12 @@ class NegamaxABPlayer:
         # print(move_list)
         list_of_tuples = []
         for move in move_list:
+            if self.depth >= 3:
+                self.static_evaluator.get_ready(
+                    possible_moves[move], self.depth - 1
+                )
+                # We apply the neural net in minibatches to
+                # not use a lot of RAM at once
             temp_score = self.score(
                 possible_moves[move],
                 self.depth - 1,
@@ -781,3 +794,46 @@ class HailMary:
         if random.random() < self.param:
             return self.nn.make_move(board)
         return self.loc.make_move(board)
+
+
+def get_v3_3ply():
+    return NegamaxABPlayer(
+        depth=3,
+        static_evaluator=ParallelCNNEvaluator(
+            name="saved_model/2021-08-23-v3-model"
+        ),
+    )
+
+
+def get_v2_3ply():
+    return NegamaxABPlayer(
+        depth=3,
+        static_evaluator=ParallelCNNEvaluator(
+            name="saved_model/2021-08-11-model"
+        ),
+    )
+
+
+def get_v1_3ply():
+    return NegamaxABPlayer(
+        depth=3,
+        static_evaluator=ParallelCNNEvaluator(
+            name="saved_model/2021-07-22-model"
+        ),
+    )
+
+
+class ListThenPlayer:
+    """First plays through the list, then switches
+    to playing as the given player when the list
+    runs out"""
+
+    def __init__(self, old_game, player):
+        self.old_game = old_game
+        self.listplayer = ListPlayer(old_game)
+        self.player = player
+
+    def make_move(self, board):
+        if board.moves_made < len(self.old_game):
+            return self.listplayer.make_move(board)
+        return self.player.make_move(board)
