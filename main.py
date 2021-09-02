@@ -796,6 +796,15 @@ class HailMary:
         return self.loc.make_move(board)
 
 
+def get_v4_3ply():
+    return NegamaxABPlayer(
+        depth=3,
+        static_evaluator=ParallelCNNEvaluator(
+            name="saved_model/2021-09-02-v4-model"
+        ),
+    )
+
+
 def get_v3_3ply():
     return NegamaxABPlayer(
         depth=3,

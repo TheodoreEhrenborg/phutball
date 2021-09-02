@@ -108,13 +108,15 @@ A more advanced AI is NegamaxABPlayer. Unfortunately it's currently weaker than 
 
 #+BEGIN_EXAMPLE
 $ du -hs *pickle
- 22M	2021-04-02-3ply-boards1.pickle
-2.6M	2021-04-02-3ply-games1.pickle
- 73M	2021-04-07-3ply-boards2.pickle
-103M	2021-04-07-3ply-data1.pickle
- 30M	2021-05-06-3ply-boards3.pickle
- 26M	2021-07-24-3ply-boards4.pickle
- 28M	2021-08-04-3ply-boards5.pickle
- 22M	2021-08-11-3ply-v2-boards6-random.pickle
- 26M	2021-08-16-3ply-v2-boards7-games.pickle
+ 22M    2021-04-02-3ply-boards1.pickle
+2.6M    2021-04-02-3ply-games1.pickle
+ 73M    2021-04-07-3ply-boards2.pickle
+103M    2021-04-07-3ply-data1.pickle
+ 30M    2021-05-06-3ply-boards3.pickle
+ 26M    2021-07-24-3ply-boards4.pickle
+ 28M    2021-08-04-3ply-boards5.pickle
+ 22M    2021-08-11-3ply-v2-boards6-random.pickle
+ 26M    2021-08-16-3ply-v2-boards7-games.pickle
+ 19M    2021-08-23-3ply-v3-boards8-random.pickle
+ 22M    2021-08-28-3ply-v3-boards9-games.pickle
 #+END_EXAMPLE
