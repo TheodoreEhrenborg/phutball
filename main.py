@@ -781,21 +781,6 @@ class NegamaxABPlayer:
         return list_of_tuples[choice][0]
 
 
-class HailMary:
-    def __init__(self, param=0.5):
-        self.nn = NegamaxABPlayer(
-            static_evaluator=NeuralNetEvaluator(),
-            depth=1,
-        )
-        self.loc = NegamaxABPlayer(depth=3)
-        self.param = param
-
-    def make_move(self, board):
-        if random.random() < self.param:
-            return self.nn.make_move(board)
-        return self.loc.make_move(board)
-
-
 def get_v4_3ply():
     return NegamaxABPlayer(
         depth=3,
@@ -846,3 +831,201 @@ class ListThenPlayer:
         if board.moves_made < len(self.old_game):
             return self.listplayer.make_move(board)
         return self.player.make_move(board)
+
+
+class Computer13:
+    """Uses MCTS to choose a move. Does not ban
+    playing reserve pieces on empty squares"""
+
+    def __init__(self, scoring=3, quiet=False):
+        self.scoring = scoring
+        self.quiet = quiet
+
+    def go(self, c, time_limit=60, curiosity=0):
+        c.calculate_moves()
+        if c.score3(c.side) in (0, 1):
+            return (None, c.score3(c.side), 0)
+        t = Tree(
+            c,
+            time_limit,
+            self.scoring,
+            curiosity,
+            self.quiet,
+        )
+        # Expect make_choice to return (bestmove, eval_average of that move,
+        # eval_count of that move)
+        return t.make_choice_visits()
+
+
+class Tree:
+    """The tree of moves, which expands using MCTS"""
+
+    def __init__(
+        self,
+        start_board,
+        time_limit,
+        scoring,
+        curiosity=0,
+        quiet=False,
+    ):
+        # Why are time_limit and self.scoring defined at different times?
+        from time import time
+
+        end_time = time() + time_limit
+        self.scoring = scoring
+        self.quiet = quiet
+        self.curiosity = curiosity
+        start_board = start_board.copy()
+        start_board.optimize = True
+        self.ur_node = Node(start_board, None)
+        self.ur_side = start_board.side
+        while time() < end_time:
+            #            print('a', time(), end_time)
+            current_node = self.ur_node
+            while not current_node.is_leaf():
+                # Choose a child node using the magic formula
+                #                print('b', time())
+                best_child = current_node.children[0]
+                for child in current_node.children:
+                    if child.magic_formula(
+                        self
+                    ) > best_child.magic_formula(self):
+                        best_child = child
+                current_node = best_child
+            # Now add children to the leaf node
+            current_node.add_children()
+            # Now run the static evaluator on the leaf,
+            # and go up the tree updating the nodes
+            static_score = current_node.board.score3(
+                self.ur_side
+            )
+            if static_score not in (0, 1):
+                static_score = current_node.board.score(
+                    self.ur_side, self.scoring
+                )
+            #            print('c', time())
+            while current_node is not None:
+                current_node.eval_count += 1
+                current_node.eval_sum += static_score
+                current_node.eval_average = (
+                    current_node.eval_sum
+                    / current_node.eval_count
+                )
+                current_node = current_node.parent
+            # And we should end up at the None node above the ur_node
+
+    def make_choice_score(self):
+        """Choose a child node using the eval_average"""
+        best_child = self.ur_node.children[0]
+        for child in self.ur_node.children:
+            if child.eval_average > best_child.eval_average:
+                # Since the ur_node uses the ur_side to maximize, we
+                # can compare the eval_averages, which were calculated
+                # based on the ur_side
+                best_child = child
+        return (
+            best_child.last_move,
+            best_child.eval_average,
+            best_child.eval_count,
+        )
+
+    def make_choice_visits(self):
+        """Choose a child node depending on which one was visited the most"""
+        if not self.quiet:
+            self.print_path()
+        best_child = self.ur_node.children[0]
+        for child in self.ur_node.children:
+            if child.eval_count > best_child.eval_count:
+                best_child = child
+            if not self.quiet:
+                print(
+                    child.last_move,
+                    child.eval_average,
+                    child.eval_count,
+                )
+        return (
+            best_child.last_move,
+            best_child.eval_average,
+            best_child.eval_count,
+        )
+
+    def print_path(self):
+        """Print out the most likely way the game will go.
+        Uses visits to judge this."""
+        current_node = self.ur_node
+        while not current_node.is_leaf():
+            # Choose the child node with the most visits
+            best_child = current_node.children[0]
+            for child in current_node.children:
+                if child.eval_count > best_child.eval_count:
+                    best_child = child
+            current_node = best_child
+            print(current_node.last_move)
+
+
+class Node:
+    """A node in this tree"""
+
+    def __init__(self, board, parent, last_move=None):
+        self.board = board
+        self.parent = parent
+        self.eval_sum = 0
+        self.eval_count = 0
+        self.eval_average = 0
+        self.children = []
+        self.last_move = last_move
+
+    def is_leaf(self):
+        return not self.children
+
+    def magic_formula(self, tree):
+        """Returns the sum of this node's exploration and exploitation
+        values. It takes into account which side we are currently
+        on. I got this from the MCTS Wikipedia page."""
+        import math
+
+        # CURIOSITY = 0.1
+        # Wikipedia suggested 2, but I think that's too high. 1 also seems too
+        # high. 0 is maybe too low, in that the computer doesn't seem to manage to think
+        # about the direct consequence of its move. 0.5 is too high, for the same
+        # reason as the previous sentence, but with more confidence. 0.1 is too
+        # high.
+        if self.eval_count == 0:
+            exploration = 100  # That is, infinity
+        else:
+            exploration = math.sqrt(
+                abs(tree.curiosity)
+                * math.log(self.parent.eval_count)
+                / self.eval_count
+            )
+            if (
+                tree.curiosity < 0
+                and self.parent != tree.ur_node
+            ):
+                exploration = 0
+            # Negative curiosity only has an effect when
+            # we're just below the ur_node.
+        if self.board.side != tree.ur_side:
+            # Then we're OK because the parent, i.e. the place from
+            # which we're choosing, agrees with the ur_side and
+            # thus agrees with the scores we've averaged
+            exploitation = self.eval_average
+        else:
+            exploitation = 1 - self.eval_average
+        #        print(exploration, exploitation)
+        return exploration + exploitation
+
+    def add_children(self):
+        """Adds children to the node. Has to calculate moves"""
+        # Do nothing if we're in an end game position
+        self.board.calculate_moves()
+        if self.board.score3("r") in (0, 1):
+            # The 'r' is completely arbitrary
+            return
+        self.board.find_good_moves_for_the_side_to_play()
+        moves = self.board.good_moves
+        #        moves = self.board.clean(self.board.moves[self.board.side])
+        for m in moves:
+            next_board = self.board.copy()
+            next_board.move(m)
+            self.children.append(Node(next_board, self, m))
