@@ -460,7 +460,7 @@ class NeuralNetEvaluator(Evaluator):
     def score(self, board):
         vec = board.get_vector()
         vec = vec[np.newaxis, ...]  # Needs to be 2d
-        value = float(self.model.predict(vec))
+        value = float(self.model(vec))
         if board.side_to_move != "Left":
             value = 1 - value
         return self.weight * value + (
@@ -483,7 +483,7 @@ class CNNEvaluator(Evaluator):
     def score(self, board):
         vec = board.get_flipped_3d_array()
         vec = vec[np.newaxis, ...]  # Needs to be 2d
-        value = float(self.model.predict(vec))
+        value = float(self.model(vec))
         # value is already for the player to move
         return value
 
@@ -502,12 +502,15 @@ class ParallelCNNEvaluator(Evaluator):
         list_of_boards += self.search_boards(board, depth)
         board_array = np.array(list_of_boards)
         # print("Sending boards to neural net...")
-        value_list = list(self.model.predict(board_array))
+        value_list = list(self.model(board_array))
         # print("Neural net is done")
         hashable = [x.tostring() for x in list_of_boards]
         # print(hashable[0])
         self.score_dict = dict(zip(hashable, value_list))
         # print("Done with get_ready")
+        print(
+            len(board_array), "neural network evaluations"
+        )
 
     def search_boards(self, board, depth):
         """Goes depth boards forward, and adds all the 3d arrays at the deepest depth
@@ -539,7 +542,7 @@ class ParallelCNNEvaluator(Evaluator):
 
     def score(self, board):
         array = board.get_flipped_3d_array()
-        return self.score_dict[array.tostring()]
+        return float(self.score_dict[array.tostring()])
 
 
 class LocationEvaluator(Evaluator):
@@ -833,28 +836,34 @@ class ListThenPlayer:
         return self.player.make_move(board)
 
 
-class Computer13:
-    """Uses MCTS to choose a move. Does not ban
-    playing reserve pieces on empty squares"""
+class MCTSPlayer:
+    """Uses MCTS to choose a move."""
 
-    def __init__(self, scoring=3, quiet=False):
-        self.scoring = scoring
+    def __init__(
+        self,
+        num_evals=1000,
+        curiosity=2,
+        quiet=False,
+        name="saved_model/2021-08-23-v3-model",
+    ):
+        self.num_evals = num_evals
+        self.curiosity = curiosity
         self.quiet = quiet
+        self.model = tf.keras.models.load_model(name)
 
-    def go(self, c, time_limit=60, curiosity=0):
-        c.calculate_moves()
-        if c.score3(c.side) in (0, 1):
-            return (None, c.score3(c.side), 0)
+    def make_move(self, board):
         t = Tree(
-            c,
-            time_limit,
-            self.scoring,
-            curiosity,
-            self.quiet,
+            start_board=board,
+            num_evals=self.num_evals,
+            curiosity=self.curiosity,
+            quiet=self.quiet,
+            model=self.model,
         )
         # Expect make_choice to return (bestmove, eval_average of that move,
         # eval_count of that move)
-        return t.make_choice_visits()
+        result = t.make_choice_visits()
+        print(result)
+        return result[0]
 
 
 class Tree:
@@ -863,25 +872,21 @@ class Tree:
     def __init__(
         self,
         start_board,
-        time_limit,
-        scoring,
-        curiosity=0,
+        num_evals=1000,
+        curiosity=2,
         quiet=False,
+        model=None,
     ):
-        # Why are time_limit and self.scoring defined at different times?
-        from time import time
 
-        end_time = time() + time_limit
-        self.scoring = scoring
         self.quiet = quiet
+        self.num_evals = num_evals
         self.curiosity = curiosity
-        start_board = start_board.copy()
-        start_board.optimize = True
         self.ur_node = Node(start_board, None)
-        self.ur_side = start_board.side
-        while time() < end_time:
-            #            print('a', time(), end_time)
+        self.ur_side = start_board.side_to_move
+        self.model = model
+        for i in range(self.num_evals):
             current_node = self.ur_node
+            # In the next loop, we go down the tree:
             while not current_node.is_leaf():
                 # Choose a child node using the magic formula
                 #                print('b', time())
@@ -896,14 +901,23 @@ class Tree:
             current_node.add_children()
             # Now run the static evaluator on the leaf,
             # and go up the tree updating the nodes
-            static_score = current_node.board.score3(
-                self.ur_side
+            static_score = LocationEvaluator().score(
+                current_node.board
             )
             if static_score not in (0, 1):
-                static_score = current_node.board.score(
-                    self.ur_side, self.scoring
+                vec = (
+                    current_node.board.get_flipped_3d_array()
                 )
-            #            print('c', time())
+                vec = vec[np.newaxis, ...]  # Needs to be 2d
+                static_score = float(self.model(vec))
+            if (
+                self.ur_side
+                != current_node.board.side_to_move
+            ):
+                static_score = 1 - static_score
+                # To take averages, every score
+                # must be from the point of view of
+                # the ur_node.
             while current_node is not None:
                 current_node.eval_count += 1
                 current_node.eval_sum += static_score
@@ -982,7 +996,6 @@ class Node:
         """Returns the sum of this node's exploration and exploitation
         values. It takes into account which side we are currently
         on. I got this from the MCTS Wikipedia page."""
-        import math
 
         # CURIOSITY = 0.1
         # Wikipedia suggested 2, but I think that's too high. 1 also seems too
@@ -993,9 +1006,9 @@ class Node:
         if self.eval_count == 0:
             exploration = 100  # That is, infinity
         else:
-            exploration = math.sqrt(
+            exploration = np.sqrt(
                 abs(tree.curiosity)
-                * math.log(self.parent.eval_count)
+                * np.log(self.parent.eval_count)
                 / self.eval_count
             )
             if (
@@ -1003,9 +1016,9 @@ class Node:
                 and self.parent != tree.ur_node
             ):
                 exploration = 0
-            # Negative curiosity only has an effect when
-            # we're just below the ur_node.
-        if self.board.side != tree.ur_side:
+                # Negative curiosity only has an effect when
+                # we're just below the ur_node.
+        if self.board.side_to_move != tree.ur_side:
             # Then we're OK because the parent, i.e. the place from
             # which we're choosing, agrees with the ur_side and
             # thus agrees with the scores we've averaged
@@ -1013,19 +1026,17 @@ class Node:
         else:
             exploitation = 1 - self.eval_average
         #        print(exploration, exploitation)
+        ## exploitation = self.eval_average
+        ## # I think this ought to work,
+        ## # since it's already been flipped
+        ## # when we made the 3d boards
         return exploration + exploitation
 
     def add_children(self):
         """Adds children to the node. Has to calculate moves"""
         # Do nothing if we're in an end game position
-        self.board.calculate_moves()
-        if self.board.score3("r") in (0, 1):
-            # The 'r' is completely arbitrary
+        if LocationEvaluator().score(self.board) in (0, 1):
             return
-        self.board.find_good_moves_for_the_side_to_play()
-        moves = self.board.good_moves
-        #        moves = self.board.clean(self.board.moves[self.board.side])
-        for m in moves:
-            next_board = self.board.copy()
-            next_board.move(m)
-            self.children.append(Node(next_board, self, m))
+        moves = self.board.get_all_nearby_moves()
+        for m in moves.keys():
+            self.children.append(Node(moves[m], self, m))
