@@ -803,6 +803,15 @@ def get_v3_3ply():
     )
 
 
+def get_v3_2ply():
+    return NegamaxABPlayer(
+        depth=2,
+        static_evaluator=ParallelCNNEvaluator(
+            name="saved_model/2021-08-23-v3-model"
+        ),
+    )
+
+
 def get_v2_3ply():
     return NegamaxABPlayer(
         depth=3,
@@ -920,9 +929,11 @@ class MCTSPlayer3:
         quiet=False,
         name="saved_model/2021-08-23-v3-model",
         how_to_choose="mr",
+        pickle_in=None,
     ):
         self.num_evals = num_evals
         self.curiosity = curiosity
+        self.pickle_in = pickle_in
         self.quiet = quiet
         self.model = tf.keras.models.load_model(name)
         self.how_to_choose = how_to_choose
@@ -947,7 +958,13 @@ class MCTSPlayer3:
             result = t.make_choice_max_robust3(
                 self.num_evals
             )
-        print(result)
+        if not self.quiet:
+            print(result)
+        if self.pickle_in is not None:
+            # self.pickle_in is the file name
+            with open(self.pickle_in, "ab") as f:
+                pickle.dump((board, result[1]), f)
+                # Always save the actual score, even if we're making a random move
         return result[0]
 
 
