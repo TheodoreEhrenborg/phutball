@@ -284,6 +284,12 @@ class Board:
         keep using it as the default.
         See
         https://docs.python.org/3/reference/compound_stmts.html#function-definitions
+
+        "If the football ends the move on or over the opponent's goal line then
+        a goal has been scored. If the football passes through a goal line, but
+        ends up elsewhere due to further jumps, the game continues. "
+        https://en.wikipedia.org/wiki/Phutball
+
         """
         #        print(moves)
         if moves is None:
@@ -930,6 +936,7 @@ class MCTSPlayer3:
         name="saved_model/2021-08-23-v3-model",
         how_to_choose="mr",
         pickle_in=None,
+        randomize=False,
     ):
         self.num_evals = num_evals
         self.curiosity = curiosity
@@ -937,6 +944,7 @@ class MCTSPlayer3:
         self.quiet = quiet
         self.model = tf.keras.models.load_model(name)
         self.how_to_choose = how_to_choose
+        self.randomize = randomize
 
     def make_move(self, board):
         t = Tree(
@@ -965,6 +973,13 @@ class MCTSPlayer3:
             with open(self.pickle_in, "ab") as f:
                 pickle.dump((board, result[1]), f)
                 # Always save the actual score, even if we're making a random move
+        if self.randomize:
+            possibilities = []
+            for node in t.ur_node.children:
+                for i in range(max(node.eval_count - 1, 0)):
+                    possibilities.append(node.last_move)
+            if len(possibilities) > 0:
+                return random.choice(possibilities)
         return result[0]
 
 
@@ -1269,6 +1284,8 @@ class Tree:
 
     def make_choice_max_robust3(self, extra_evals):
         """Will spend up to extra_evals more evals to get a max-robust answer"""
+        temp = self.quiet
+        self.quiet = True
         max_result = self.make_choice_score()
         robust_result = self.make_choice_visits()
         count = 0
@@ -1282,6 +1299,10 @@ class Tree:
             max_result = self.make_choice_score()
             robust_result = self.make_choice_visits()
             count += extra_evals // 10
+        self.quiet = temp
+        if not self.quiet:
+            self.make_choice_visits()
+            # To print out what we're doing
         return robust_result
 
     def print_path(self):
