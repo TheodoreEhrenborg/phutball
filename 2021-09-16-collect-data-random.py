@@ -19,5 +19,5 @@ while True:
     count += 1
     b.randomize(random.randint(0, 30))
     player.make_move(b.copy())
-    if count % 100 == 0:
+    if count % 2 == 0:
         print(count, "boards")
