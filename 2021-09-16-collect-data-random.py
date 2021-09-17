@@ -3,7 +3,7 @@
 import main
 import random
 
-player = main.MCTSPlayer3(
+player = main.MCTSPlayer4(
     num_evals=100000,
     curiosity=0.001,
     quiet=True,
