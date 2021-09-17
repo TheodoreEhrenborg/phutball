@@ -2,6 +2,7 @@
 
 import main
 import random
+import time
 
 player = main.MCTSPlayer4(
     num_evals=100000,
@@ -20,4 +21,4 @@ while True:
     b.randomize(random.randint(0, 30))
     player.make_move(b.copy())
     if count % 2 == 0:
-        print(count, "boards")
+        print(count, "boards at ", time.strftime("%c"))
