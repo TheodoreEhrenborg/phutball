@@ -1131,6 +1131,7 @@ class Tree:
         we only found the best node"""
         i = 0
         while i < num_evals:
+            print(i)
             current_node = self.ur_node
             # In the next loop, we go down the tree:
             while not current_node.is_leaf():
