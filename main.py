@@ -946,7 +946,7 @@ class MCTSPlayer3:
         self.how_to_choose = how_to_choose
         self.randomize = randomize
 
-    def make_move(self, board):
+    def make_move(self, board, return_all=False):
         t = Tree(
             start_board=board,
             curiosity=self.curiosity,
@@ -980,6 +980,8 @@ class MCTSPlayer3:
                     possibilities.append(node.last_move)
             if len(possibilities) > 0:
                 return random.choice(possibilities)
+        if return_all:
+            return result
         return result[0]
 
 
