@@ -21,11 +21,11 @@ count = 0
 while True:
     count += 1
     b.randomize(random.randint(0, 30))
-    b.pretty_print_details()
+    #    b.pretty_print_details()
     with open(
         "2021-09-22-malfunctioning-board.pickle", "wb"
     ) as f:
         pickle.dump(b, f)
     player.make_move(b.copy())
-    if count % 1 == 0:
+    if count % 10 == 0:
         print(count, "boards at ", time.strftime("%c"))
