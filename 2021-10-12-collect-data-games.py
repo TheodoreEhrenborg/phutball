@@ -22,7 +22,8 @@ while True:
     count += 1
     main.run_game(
         quiet=True,
-        truncate_time=2000,
+        truncate_time=11000,
+        # I think this should cause games of at most ~200 moves
         players=[left_player, right_player],
     )
     if count % 10 == 0:

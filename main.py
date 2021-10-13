@@ -976,6 +976,8 @@ class MCTSPlayer3:
         if self.randomize:
             possibilities = []
             for node in t.ur_node.children:
+                # We subtract one because we don't want to consider moves that only
+                # got a cursory glance from MCTS before being discarded
                 for i in range(max(node.eval_count - 1, 0)):
                     possibilities.append(node.last_move)
             if len(possibilities) > 0:
