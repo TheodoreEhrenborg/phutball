@@ -1045,6 +1045,68 @@ class MCTSPlayer4:
         return result[0]
 
 
+class MCTSPlayer5:
+    """Uses MCTS to choose a move. Better at end games"""
+
+    def __init__(
+        self,
+        num_evals=1000,
+        curiosity=2,
+        quiet=False,
+        name="saved_model/2021-08-23-v3-model",
+        how_to_choose="mr",
+        pickle_in=None,
+        randomize=False,
+    ):
+        self.num_evals = num_evals
+        self.curiosity = curiosity
+        self.pickle_in = pickle_in
+        self.quiet = quiet
+        self.model = tf.keras.models.load_model(name)
+        self.how_to_choose = how_to_choose
+        self.randomize = randomize
+
+    def make_move(self, board, return_all=False):
+        t = Tree(
+            start_board=board,
+            curiosity=self.curiosity,
+            quiet=self.quiet,
+            model=self.model,
+        )
+        t.build_parallel_max5(
+            num_evals=self.num_evals,
+        )
+        # Expect make_choice to return (bestmove, eval_average of that move,
+        # eval_count of that move)
+        if self.how_to_choose == "r":
+            result = t.make_choice_visits()
+        elif self.how_to_choose == "m":
+            result = t.make_choice_score()
+        else:
+            result = t.make_choice_max_robust5(
+                self.num_evals
+            )
+        if not self.quiet:
+            print(result)
+        if self.pickle_in is not None:
+            # self.pickle_in is the file name
+            with open(self.pickle_in, "ab") as f:
+                pickle.dump((board, result[1]), f)
+                # Always save the actual score, even if we're making a random move
+        if self.randomize:
+            possibilities = []
+            for node in t.ur_node.children:
+                # We subtract one because we don't want to consider moves that only
+                # got a cursory glance from MCTS before being discarded
+                for i in range(max(node.eval_count - 1, 0)):
+                    possibilities.append(node.last_move)
+            if len(possibilities) > 0:
+                return random.choice(possibilities)
+        if return_all:
+            return result
+        return result[0]
+
+
 class Tree:
     """The tree of moves, which expands using MCTS"""
 
@@ -1401,6 +1463,222 @@ class Tree:
 
             # And we should end up at the None node above the ur_node
 
+    def build_parallel_max5(self, num_evals=1000):
+        """When we reach a leaf node, we instead run the neural network
+        on that node and all of its siblings at once. But then we pretend
+        we only found the best node"""
+        i = 0
+        while i < num_evals:
+            #  print(i)
+            current_node = self.ur_node
+            # In the next loop, we go down the tree:
+            while not current_node.is_leaf():
+                # Choose a child node using the magic formula
+                #                print('b', time())
+                best_child = current_node.children[0]
+                for child in current_node.children:
+                    if child.magic_formula(
+                        self
+                    ) > best_child.magic_formula(self):
+                        best_child = child
+                current_node = best_child
+            # Now add children to the leaf node
+            current_node.add_children()
+            # Now run the static evaluator on the siblings
+            # and go up the tree updating the nodes
+            if LocationEvaluator().score(
+                current_node.board
+            ) in (0, 1):
+                self.build(1)
+                i += 1
+                # If we're at a win/lose point, we'll handle it normally
+                # Because the following code avoids evaluating the same
+                # board twice, but in a win/lose board, you want it to get evaluated
+                # over and over
+                # This is a kludge, but hopefully it won't affect the time
+                # too much because win/lose points occur rarely
+            elif (
+                current_node != self.ur_node
+                and current_node.eval_count == 0
+            ):
+                # Don't evaluate a node with no kids if we've already
+                # done one of its siblings
+                siblings = current_node.parent.children
+                list_of_boards = [
+                    x.board.get_flipped_3d_array()
+                    for x in siblings
+                ]
+                board_array = np.array(list_of_boards)
+                value_list = list(self.model(board_array))
+                static_score = 1
+                if (
+                    self.ur_side
+                    != current_node.board.side_to_move
+                ):
+                    static_score = 0
+                i += len(siblings)
+                for j in range(len(siblings)):
+                    sib = siblings[j]
+                    indiv_score = LocationEvaluator().score(
+                        sib.board
+                    )
+                    if indiv_score not in (0, 1):
+                        indiv_score = float(value_list[j])
+                    if (
+                        self.ur_side
+                        != current_node.board.side_to_move
+                    ):
+                        indiv_score = 1 - indiv_score
+                        static_score = max(
+                            indiv_score, static_score
+                        )
+                    else:
+                        static_score = min(
+                            indiv_score, static_score
+                        )
+                    sib.eval_count += 1
+                    sib.eval_sum += indiv_score
+                    sib.eval_average = (
+                        sib.eval_sum / sib.eval_count
+                    )
+                # To take averages, every score
+                # must be from the point of view of
+                # the ur_node.
+                # print(indiv_score, static_score)
+                current_node = current_node.parent
+                while current_node is not None:
+                    current_node.eval_count += 1
+                    current_node.eval_sum += static_score
+                    current_node.eval_average = (
+                        current_node.eval_sum
+                        / current_node.eval_count
+                    )
+                    current_node = current_node.parent
+
+            # And we should end up at the None node above the ur_node
+
+    def build_parallel_max6(self, num_evals=1000):
+        """When we reach a leaf node, we instead run the neural network
+        on that node and all of its siblings at once. But then we pretend
+        we only found the best node
+        Like 5, but without all the if False's removed"""
+
+        i = 0
+        while i < num_evals:
+            #  print(i)
+            current_node = self.ur_node
+            # In the next loop, we go down the tree:
+            while not current_node.is_leaf():
+                # Choose a child node using the magic formula
+                #                print('b', time())
+                best_child = current_node.children[0]
+                for child in current_node.children:
+                    if child.magic_formula(
+                        self
+                    ) > best_child.magic_formula(self):
+                        best_child = child
+                current_node = best_child
+            # Now add children to the leaf node
+            current_node.add_children()
+            # Now run the static evaluator on the siblings
+            # and go up the tree updating the nodes
+            if LocationEvaluator().score(
+                current_node.board
+            ) in (0, 1):
+                self.build(1)
+                i += 1
+                # If we're at a win/lose point, we'll handle it normally
+                # Because the following code avoids evaluating the same
+                # board twice, but in a win/lose board, you want it to get evaluated
+                # over and over
+                # This is a kludge, but hopefully it won't affect the time
+                # too much because win/lose points occur rarely
+            elif (
+                current_node != self.ur_node
+                and current_node.eval_count == 0
+            ):
+                # Don't evaluate a node with no kids if we've already
+                # done one of its siblings
+                siblings = current_node.parent.children
+                list_of_boards = [
+                    x.board.get_flipped_3d_array()
+                    for x in siblings
+                ]
+                board_array = np.array(list_of_boards)
+                value_list = list(self.model(board_array))
+                static_score = 1
+                if (
+                    self.ur_side
+                    != current_node.board.side_to_move
+                ):
+                    static_score = 0
+                i += len(siblings)
+                for j in range(len(siblings)):
+                    sib = siblings[j]
+                    indiv_score = LocationEvaluator().score(
+                        sib.board
+                    )
+                    #                    print(indiv_score)
+                    if False and indiv_score == 0:
+                        # We're at a definite win for the parent, so
+                        # we need to be careful to not waste moves on this
+                        print("hi")
+                        #                        sib.board.pretty_print_details()
+                        i += 1  # To avoid infinite loops
+                        for k in range(len(siblings)):
+                            sib2 = siblings[k]
+                            sib2.eval_count = (
+                                10 ** 6
+                            )  # A large number
+                            if k != j:
+                                sib2.eval_average = 0.5
+                        break
+                        print("bye")
+                        # So if MCTS ever returns to the parent, it'll
+                        # automatically hone in on the winnning move
+                    #                    print("red")
+                    if indiv_score not in (0, 1):
+                        indiv_score = float(value_list[j])
+                    if (
+                        self.ur_side
+                        != current_node.board.side_to_move
+                    ):
+                        indiv_score = 1 - indiv_score
+                        static_score = max(
+                            indiv_score, static_score
+                        )
+                    else:
+                        static_score = min(
+                            indiv_score, static_score
+                        )
+                    sib.eval_count += 1
+                    sib.eval_sum += indiv_score
+                    sib.eval_average = (
+                        sib.eval_sum / sib.eval_count
+                    )
+                if False and indiv_score == 0:
+                    static_score = 0
+                    if (
+                        self.ur_side
+                        != current_node.board.side_to_move
+                    ):
+                        static_score = 1
+                # To take averages, every score
+                # must be from the point of view of
+                # the ur_node.
+                # print(indiv_score, static_score)
+                current_node = current_node.parent
+                while current_node is not None:
+                    current_node.eval_count += 1
+                    current_node.eval_sum += static_score
+                    current_node.eval_average = (
+                        current_node.eval_sum
+                        / current_node.eval_count
+                    )
+                    current_node = current_node.parent
+
+            # And we should end up at the None node above the ur_node
+
     def make_choice_score(self):
         """Choose a child node using the eval_average"""
         if not self.quiet:
@@ -1501,6 +1779,29 @@ class Tree:
             and count < extra_evals
         ):
             self.build4(num_evals=extra_evals // 10)
+            max_result = self.make_choice_score()
+            robust_result = self.make_choice_visits()
+            count += extra_evals // 10
+        self.quiet = temp
+        if not self.quiet:
+            self.make_choice_visits()
+            # To print out what we're doing
+        return robust_result
+
+    def make_choice_max_robust5(self, extra_evals):
+        """Will spend up to extra_evals more evals to get a max-robust answer"""
+        temp = self.quiet
+        self.quiet = True
+        max_result = self.make_choice_score()
+        robust_result = self.make_choice_visits()
+        count = 0
+        while (
+            max_result != robust_result
+            and count < extra_evals
+        ):
+            self.build_parallel_max5(
+                num_evals=extra_evals // 10
+            )
             max_result = self.make_choice_score()
             robust_result = self.make_choice_visits()
             count += extra_evals // 10
