@@ -791,6 +791,14 @@ class NegamaxABPlayer:
         return list_of_tuples[choice][0]
 
 
+def get_v3_mcts():
+    return MCTSPlayer3(
+        num_evals=10 ** 5,
+        curiosity=0.001,
+        name="saved_model/2021-08-23-v3-model",
+    )
+
+
 def get_v4_3ply():
     return NegamaxABPlayer(
         depth=3,

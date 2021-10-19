@@ -1,7 +1,7 @@
 #+TITLE: phutball
 
 This repository contains several algorithms
-that play [[https://en.wikipedia.org/wiki/Phutball][Phutball]] (and it will contain more eventually).
+that play [[https://en.wikipedia.org/wiki/Phutball][Phutball]] (and it will contain more with time).
 
 I oriented the board horizontally, following Berlekamp, Conway, and
 Guy's convention in /Winning Ways for Your Mathematical Plays/ (pp.
@@ -10,6 +10,21 @@ Guy's convention in /Winning Ways for Your Mathematical Plays/ (pp.
 Left (which always goes first) tries to get the ball (black circle)
 all the way to the right (i.e. in Right's goal), and vice versa.
 
+
+* How to play
+Make sure you've installed TensorFlow.
+
+The simplest AI is PloddingPlayer, which either places a man
+directly next to the ball, or makes a jump if that's possible. You can
+play against it by running:
+
+
+#+BEGIN_SRC python
+import main
+left_player = main.PloddingPlayer()
+right_player = main.HumanPlayer()
+main.run_game( (left_player, right_player ) )
+#+END_SRC
 
 
 
@@ -88,19 +103,29 @@ If it were Right's turn, they could type ~W~ and jump all three men
 (white circles) at once, since making a shorter jump to the west isn't
 possible.
 
+* Better AIs
++A more advanced AI is NegamaxABPlayer. Unfortunately it's currently weaker than PloddingPlayer. Likely I need to make better training data.+ Yay, this is no longer true because I've made improvements.
 
-The simplest AI is PloddingPlayer, which either places a man
-directly next to the ball, or makes a jump if that's possible. You can
-play against it by running:
-
-
+To play against a minimax AI, run
 #+BEGIN_SRC python
 import main
-main.run_game( (main.PloddingPlayer(), main.HumanPlayer() ) )
+left_player = main.get_v3_3ply()
+right_player = main.HumanPlayer()
+main.run_game( (left_player, right_player ) )
 #+END_SRC
 
-A more advanced AI is NegamaxABPlayer. Unfortunately it's currently weaker than PloddingPlayer.
-(See [[https://lettertok.com/index.php/2021/03/24/rules-of-phutball/][these]] [[http://lettertok.com/index.php/2021/03/31/a-fancier-algorithm/][three]] [[http://lettertok.com/index.php/2021/04/07/groundhog-day/][posts]] for more discussion of this. Likely I need to make better training data.)
+To play against an AI that uses Monte Carlo Tree Search, run
+#+BEGIN_SRC python
+import main
+left_player = main.get_v3_mcts()
+right_player = main.HumanPlayer()
+main.run_game( (left_player, right_player ) )
+#+END_SRC
+
+MCTS is stronger than minimax (see my tests in ~2021-09-07-testing-mcts3.ipynb~) and also has the nice feature of not needing more time when the game gets more complicated. It takes about 40 seconds per move on my Mac.
+
+* Some problems I encountered
+See [[https://lettertok.com/index.php/2021/03/24/rules-of-phutball/][these]] [[http://lettertok.com/index.php/2021/03/31/a-fancier-algorithm/][three]] [[http://lettertok.com/index.php/2021/04/07/groundhog-day/][posts]]
 
 * Files
 
@@ -121,4 +146,10 @@ $ du -hs *pickle
  22M	2021-08-28-3ply-v3-boards9-games.pickle
  20M	2021-09-09-mcts-v3-boards10-random.pickle
  20M	2021-09-12-mcts-v3-boards11-games.pickle
+ 56K	2021-09-16-mcts-v3-boards12-random.pickle
+ 18M	2021-09-18-mcts-v3-boards13-random.pickle
+4.0K	2021-09-22-first-malfunctioning-board.pickle
+4.0K	2021-09-22-malfunctioning-board.pickle
+992K	2021-10-12-mcts-v3-boards14-games-DISCARDED.pickle
+8.5M	2021-10-12-mcts-v3-boards14-games.pickle
 #+END_EXAMPLE
