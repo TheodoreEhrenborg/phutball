@@ -12,7 +12,7 @@ all the way to the right (i.e. in Right's goal), and vice versa.
 
 
 * How to play
-Make sure you've installed TensorFlow.
+Make sure you've installed TensorFlow and have at least 4 GB of RAM.
 
 The simplest AI is PloddingPlayer, which either places a man
 directly next to the ball, or makes a jump if that's possible. You can
