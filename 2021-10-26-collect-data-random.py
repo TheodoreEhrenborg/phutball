@@ -19,7 +19,7 @@ count = 0
 while True:
     count += 1
     b.randomize(random.randint(0, 30))
-    b.pretty_print_details()
+#    b.pretty_print_details()
     player.make_move(b.copy())
     if False and count % 10 == 0:
         print(count, "boards at ", time.strftime("%c"))
