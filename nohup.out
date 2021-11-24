@@ -11441,3 +11441,8 @@ To enable them in other operations, rebuild TensorFlow with the appropriate comp
 2021-11-22 23:07:22.389481: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (ip-172-31-40-177.us-east-2.compute.internal): /proc/driver/nvidia/version does not exist
 2021-11-22 23:07:22.390653: I tensorflow/core/platform/cpu_feature_guard.cc:142] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F FMA
 To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2021-11-23 18:45:42.065813: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 238571520 exceeds 10% of free system memory.
+2021-11-23 18:45:42.423605: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 238571520 exceeds 10% of free system memory.
+2021-11-23 18:45:42.534652: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 238571520 exceeds 10% of free system memory.
+2021-11-23 18:45:46.564146: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 245583360 exceeds 10% of free system memory.
+2021-11-23 18:45:46.934908: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 245583360 exceeds 10% of free system memory.
