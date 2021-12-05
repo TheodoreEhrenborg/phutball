@@ -11446,3 +11446,10 @@ To enable them in other operations, rebuild TensorFlow with the appropriate comp
 2021-11-23 18:45:42.534652: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 238571520 exceeds 10% of free system memory.
 2021-11-23 18:45:46.564146: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 245583360 exceeds 10% of free system memory.
 2021-11-23 18:45:46.934908: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 245583360 exceeds 10% of free system memory.
+2021-12-04 21:26:02.611480: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
+2021-12-04 21:26:02.611872: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+2021-12-04 21:26:05.632287: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2021-12-04 21:26:05.632323: W tensorflow/stream_executor/cuda/cuda_driver.cc:269] failed call to cuInit: UNKNOWN ERROR (303)
+2021-12-04 21:26:05.632343: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (ip-172-31-40-177.us-east-2.compute.internal): /proc/driver/nvidia/version does not exist
+2021-12-04 21:26:05.632928: I tensorflow/core/platform/cpu_feature_guard.cc:142] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
